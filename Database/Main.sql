@@ -51,7 +51,7 @@ FAQLink5_PartName varchar(50) NULL,
 FAQLink5_URL varchar(200) NULL);
 
 
--- Define primary keys, unique key, and add auto increment 
+#Define primary keys, unique key, and add auto increment 
 ALTER TABLE Person
   ADD CONSTRAINT personID_pk PRIMARY KEY (personID),
   MODIFY COLUMN personID int AUTO_INCREMENT;
@@ -64,7 +64,7 @@ ALTER TABLE Person
   ADD CONSTRAINT UC_personEmail UNIQUE (personEmail);
 
 
--- Define foreign keys
+#Define foreign keys
 ALTER TABLE Form
   ADD CONSTRAINT fk_personID_Form
     FOREIGN KEY (personID)
@@ -79,7 +79,7 @@ ALTER TABLE ViewingOfFAQ
     REFERENCES FrequentlyAskedQuestion(FAQ_Number);
 
 
--- Fix the 2 roles, 2 types of devices and the 4 categories
+#Fix the 2 roles, 2 types of devices and the 4 categories
 ALTER TABLE Person
   ADD CONSTRAINT Check_personRole
     CHECK (personRole IN ("User", "Administrator"));
@@ -95,3 +95,9 @@ ALTER TABLE FrequentlyAskedQuestion
     CHECK (FAQ_Device IN ("Smartphone", "Computer")),
   ADD CONSTRAINT Check_Category_FAQ
     CHECK (FAQ_Category IN ("Hardware", "Security", "Architecture", "Connections"));
+
+
+#Limit the length of password
+ALTER TABLE Person
+  ADD CONSTRAINT Check_PasswordLength
+    CHECK (length(personPassword) BETWEEN 8 AND 20); 
