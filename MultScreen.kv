@@ -1,0 +1,455 @@
+WindowManager:
+	LoginWindow:
+	registrationwindow:
+	mainmenu:
+	chooserpage:
+	helpdeskform:
+
+<LoginWindow>:
+	name: "login"
+
+	MDLabel:
+		text: "Helpdesk Application"
+		font_size: 30
+		size_hint_y: None
+		pos_hint:{"x":0.05,"top":1}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDLabel:
+		text: "User Email"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":380/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDTextField:
+		id: login_email
+		hint_text: "Email"
+		icon_right: "account"
+		mode: "rectangle"
+		size_hint_x: None
+		pos_hint: {"x":250/800,"y":350/500}
+		width: 300
+		font_size: 15
+
+	MDLabel:
+		id: login_email_error
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":325/500}
+		height: self.texture_size[1]
+		padding_y: 15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#FF0000")
+
+	MDLabel:
+		text: "Password"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":310/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDTextField:
+		id: password
+		mode:"rectangle"
+		hint_text: "password"
+		icon_right: "eye-off"
+		size_hint_x: None
+		width: 300
+		font_size: 15
+		pos_hint: {"x":250/800,"y":280/500}
+		password: True
+
+	MDLabel:
+		id: password_error
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":255/500}
+		height: self.texture_size[1]
+		padding_y: 15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#FF0000")
+
+	MDRectangleFlatButton:
+		text: "Login"
+		font_size: 16
+		pos_hint: {"x":238/800, "y": 225/500}
+		on_press: 
+			app.root.current = "Main Menu"
+			root.manager.transition.direction = "up"
+           
+	MDTextButton:
+		text: "Don't have an account? Register here."
+		font_size: 14
+		pos_hint: {"x":358/800, "y":245/500}
+		on_press: 
+			app.root.current = "Registration"
+			root.manager.transition.direction = "left"
+			root.ids.login_email.text = ""
+			root.ids.password.text = ""
+
+<registrationwindow>:
+	name: "Registration"
+
+	MDLabel:
+		text: "Registration Page"
+		font_size: 30
+		size_hint_y: None
+		pos_hint:{"x":0.05,"top":1}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDLabel:
+		text: "Email address"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":380/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDTextField:
+		id: email
+		hint_text: "Email address"
+		icon_right: "email"
+		mode: "rectangle"
+		size_hint_x: None
+		pos_hint: {"x":250/800,"y":350/500}
+		width: 300
+		font_size: 15
+
+	MDLabel:
+		id: email_error
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":250/800,"y":323/500}
+		height: self.texture_size[1]
+		padding_y: 15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#FF0000")
+
+	MDLabel:
+		text: "Password"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":310/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDTextField:
+		id: password
+		mode:"rectangle"
+		hint_text: "password"
+		icon_right: "eye-off"
+		size_hint_x: None
+		width: 300
+		font_size: 15
+		pos_hint: {"x":250/800,"y":280/500}
+		password: True
+
+	MDLabel:
+		id: password_error
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":250/800,"y":253/500}
+		height: self.texture_size[1]
+		padding_y: 15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#FF0000")
+
+	MDLabel:
+		text: "Re-enter password"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":238/800,"y":240/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDTextField:
+		id: re_enter_password
+		mode:"rectangle"
+		hint_text: "password"
+		size_hint_x: None
+		width: 300
+		font_size: 15
+		pos_hint: {"x":250/800,"y":210/500}
+		password: True
+
+	MDLabel:
+		id: re_enter_password_error
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":250/800,"y":185/500}
+		height: self.texture_size[1]
+		padding_y: 15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#FF0000")
+
+	MDLabel:
+		id: captcha
+		text: " "
+		font_size: 20
+		size_hint_y: None
+		pos_hint:{"x":270/800,"y":166.5/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDRectangleFlatButton:
+		id: get_captcha
+		text: "Generate captcha"
+		font_size:16
+		pos_hint:{"x":350/800,"y":167.5/500}
+		on_press: app.create_captcha()
+
+	MDTextField:
+		id: captcha_answer
+		mode:"rectangle"
+		hint_text: "Captcha"
+		size_hint_x: None
+		width: 300
+		font_size: 15
+		pos_hint: {"x":250/800,"y":120/500}
+
+	MDRectangleFlatButton:
+		text: "Verify"
+		font_size: 16
+		pos_hint: {"x":580/800, "y": 122.5/500.0}
+		on_press: app.verify_captcha()
+
+	MDLabel:
+		id: captcha_error
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":250/800,"y":90/500}
+		height: self.texture_size[1]
+		padding_y: 15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#FF0000")
+
+	MDLabel:
+		id: captcha_validated
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":250/800,"y":90/500}
+		height: self.texture_size[1]
+		padding_y: 15
+
+	MDTextButton:
+		text: "Already have an account? Login here."
+		font_size: 14
+		pos_hint: {"x":358/800, "y":70/500}
+		on_press: 
+			app.root.current = "login"
+			root.manager.transition.direction = "right"
+			root.ids.email.text = ""
+			root.ids.password.text = ""
+			root.ids.re_enter_password.text = ""
+			root.ids.captcha.text = ""
+			root.ids.captcha_answer = ""
+
+	MDRectangleFlatButton:
+		text: "Register"
+		font_size: 16
+		pos_hint: {"x":238/800, "y": 70/500}
+		on_press: app.verify_email() ; app.verify_password() ; app.verify_re_enter_password()
+
+<mainmenu>:
+	name:"Main Menu"
+
+	MDLabel:
+		text:"Main Menu"
+		font_style: "H4"
+		size_hint_y: None
+		pos_hint:{"x":0.05,"y":0.85}
+		height: self.texture_size[1]
+		padding_y:15
+
+	MDRectangleFlatIconButton:
+		text:"Logout"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":0.75,"y":0.85}
+		text_color:("#99c742")
+		on_press: 
+			app.root.current = "login"
+			root.manager.transition.direction = "down"
+
+	MDLabel:
+		text:"Helpdesk Application"
+		font_style: "H3"
+		size_hint_y: None
+		pos_hint:{"x":300/800,"y":250/500}
+		height: self.texture_size[1]
+		padding_y:15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#673ab7")
+
+	MDLabel:
+		text:"All Project 2 by Muhd Darwis and Chan Khai Shen"
+		font_style: "Subtitle1"
+		size_hint_y: None
+		pos_hint:{"x":300/800,"y":230/500}
+		height: self.texture_size[1]
+		padding_y:15
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#99c742")
+
+	MDRectangleFlatIconButton:
+		text: "FAQs>"
+		icon: "frequently-asked-questions"
+		font_size: 30
+		pos_hint: {"x":80/800, "y": 200/500}
+		text_color:("#99c742")		
+
+	MDRectangleFlatIconButton:
+		text: "Helpdesk Form>"
+		icon: "form-select"
+		font_size: 30
+		pos_hint: {"x":15/800, "y": 280/500}
+		text_color:("#99c742")
+		on_press: 
+			app.root.current = "Helpdesk form"
+			root.manager.transition.direction = "left"
+
+<helpdeskform>:
+	name:"Helpdesk form"
+
+	MDRectangleFlatIconButton:
+		text:"Back"
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":0.75,"y":0.85}
+		text_color:("#99c742")
+		on_press: 
+			app.root.current = "Main Menu"
+			root.manager.transition.direction = "down"
+	MDLabel:
+		text:"Helpdesk Form"
+		font_style: "H4"
+		size_hint_y: None
+		pos_hint:{"x":0.05,"y":0.85}
+		height: self.texture_size[1]
+		padding_y:15
+
+	MDLabel:
+		text:"User email address"
+		size_hint_y: None
+		font_size: 15
+		pos_hint:{"x":150/800,"y":380/500}
+		height: self.texture_size[1]
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#673ab7")
+
+	MDTextField:
+		id: user_email_address
+		hint_text: "Email address"
+		mode: "rectangle"
+		size_hint: 450/800, None
+		pos_hint: {"x":165/800,"y":340/500}
+		width: 300
+		font_size: 15
+
+	MDLabel:
+		id: email_error
+		text: " "
+		size_hint_y: None
+		font_size: 15
+		pos_hint: {"x":165/800,"y":325/500}
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#673ab7")		
+
+	MDLabel:
+		text:"Describe your issue here:"
+		size_hint_y: None
+		font_size: 15
+		pos_hint:{"x":150/800,"y":310/500}
+		height: self.texture_size[1]
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#673ab7")
+
+	MDTextField:
+		id: issue
+		hint_text: "Describe Issue"
+		mode: "rectangle"
+		multiline: True 
+		size_hint: 450/800, 200/500
+		pos_hint: {"x":165/800,"y":110/500}
+		width: 300
+		font_size: 15
+
+	MDRectangleFlatIconButton:
+		text:"Upload Image"
+		font_size: 15
+		icon: "upload"
+		size_hint_y: None
+		pos_hint:{"x":150/800,"y":70/500}
+		text_color:("#99c742")
+		on_press: 
+			app.root.current = "chooser"
+			root.manager.transition.direction = "left"		
+
+	MDRectangleFlatIconButton:
+		text:"Submit Form"
+		font_size: 15
+		icon: "send"
+		size_hint_y: None
+		pos_hint:{"x":485/800,"y":70/500}
+		text_color:("#99c742")
+
+	MDLabel:
+		id: file_directory
+		text:" "
+		size_hint_y: None
+		font_size: 15
+		pos_hint:{"x":150/800,"y":50/500}
+		height: self.texture_size[1]
+		canvas.before:
+			Color:
+				rgba: (0,0,0,1)
+		color: ("#673ab7")
+
+<chooserpage>
+	name: "chooser"
+	FileChooser:
+		pos_hint:{"x":0/800,"y":0/500}
+		id:filechooser
+		FileChooserIconLayout
+
+	MDRectangleFlatButton:
+		text: "Submit file"
+		font_size:30
+		pos_hint:{"x":330/800,"y":70/500}
+		on_press: 
+			app.selected(filechooser.selection)
+			app.root.current = "Helpdesk form"
