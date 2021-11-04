@@ -56,7 +56,7 @@ WindowManager:
 		padding_y: 15
 
 	MDTextField:
-		id: password
+		id: login_password
 		mode:"rectangle"
 		hint_text: "password"
 		icon_right: "eye-off"
@@ -67,7 +67,7 @@ WindowManager:
 		password: True
 
 	MDLabel:
-		id: password_error
+		id: login_password_error
 		text: " "
 		font_size: 15
 		size_hint_y: None
@@ -84,8 +84,18 @@ WindowManager:
 		font_size: 16
 		pos_hint: {"x":238/800, "y": 225/500}
 		on_press: 
+			app.verify_login_email(); app.verify_login_password(); app.login()
 			app.root.current = "Main Menu"
 			root.manager.transition.direction = "up"
+
+	MDLabel:
+		id: login_button_message
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint: {"x":238/800, "y": 195/500}
+		height: self.texture_size[1]
+		padding_y: 15
            
 	MDTextButton:
 		text: "Don't have an account? Register here."
@@ -272,7 +282,17 @@ WindowManager:
 		text: "Register"
 		font_size: 16
 		pos_hint: {"x":238/800, "y": 70/500}
-		on_press: app.verify_email() ; app.verify_password() ; app.verify_re_enter_password()
+		on_press: app.verify_email() ; app.verify_password() ; app.verify_re_enter_password() ; app.register()
+
+
+	MDLabel:
+		id: registration_complete
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":250/800,"y":40/500}
+		height: self.texture_size[1]
+		padding_y: 15
 
 <mainmenu>:
 	name:"Main Menu"
