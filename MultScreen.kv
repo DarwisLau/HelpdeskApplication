@@ -85,7 +85,7 @@ WindowManager:
 		pos_hint: {"x":238/800, "y": 225/500}
 		on_press: 
 			app.verify_login_email(); app.verify_login_password(); app.login()
-			app.root.current = "Main Menu"
+			app.root.current = "Main Menu" if login_button_message.text == "Welcome..." else "login"
 			root.manager.transition.direction = "up"
 
 	MDLabel:
@@ -104,8 +104,7 @@ WindowManager:
 		on_press: 
 			app.root.current = "Registration"
 			root.manager.transition.direction = "left"
-			root.ids.login_email.text = ""
-			root.ids.password.text = ""
+			
 
 <registrationwindow>:
 	name: "Registration"
@@ -276,7 +275,10 @@ WindowManager:
 			root.ids.password.text = ""
 			root.ids.re_enter_password.text = ""
 			root.ids.captcha.text = ""
-			root.ids.captcha_answer = ""
+			root.ids.captcha_answer.text = ""
+			root.ids.captcha_error.text = ""
+			root.ids.captcha_validated.text = ""
+			root.ids.registration_complete.text = ""
 
 	MDRectangleFlatButton:
 		text: "Register"
