@@ -1,10 +1,10 @@
 from kivy.lang import Builder
 from kivymd.app import MDApp
 from validate_email import validate_email
-from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
+from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import ObjectProperty
 import random
-from LoginAndRegister import registerUser
+from LoginAndRegister import registerUser, loginAndGetRole, registerAdministrator
 
 user_email = None
 user_password = None
@@ -14,8 +14,8 @@ user_captcha = None
 user_login_email = None
 user_login_password = None
 
-current_user_email = None
-current_user_role = None
+current_user_email = ""
+current_user_role = ""
 
 text = 'abcdefghijklmnopqrstuvxyz0123456789'
 
@@ -29,27 +29,26 @@ class MainApp(MDApp):
 
 	def verify_login_email(self):
 
-		LoginWindow_instance = self.root.get_screen("Login")
+		LoginWindow_instance = self.root.get_screen("login")
 
 		global user_login_email
 
 		if len(LoginWindow_instance.ids.login_email.text) > 150:
                         LoginWindow_instance.ids.login_email_error.text = "The character limit for email address is 150."
                         user_login_email = 0
-                elif len(LoginWindow_instance.ids.login_email.text) == 0:
+		elif len(LoginWindow_instance.ids.login_email.text) == 0:
                         LoginWindow_instance.ids.login_email_error.text = "Please enter your email address"
                         user_login_email = 0
-
 		if validate_email(LoginWindow_instance.ids.login_email.text) == True:
-			self.root.ids.login_email_error.text = " "
-			user_login_email = 1
+                        LoginWindow_instance.ids.login_email_error.text = " "
+                        user_login_email = 1
 		elif validate_email(LoginWindow_instance.ids.login_email.text) == False:
-			self.root.ids.login_email_error.text = "Please use a valid email address"
-			user_login_email = 0
+                        LoginWindow_instance.ids.login_email_error.text = "Please use a valid email address"
+                        user_login_email = 0
 
 	def verify_login_password(self):
 
-                LoginWindow_instance = self.root.get_screen("Login")
+                LoginWindow_instance = self.root.get_screen("login")
 
                 global user_login_password
 
@@ -62,12 +61,19 @@ class MainApp(MDApp):
 
 	def login(self):
 
-                LoginWindow_instance = self.root.get_screen("Login")
+                LoginWindow_instance = self.root.get_screen("login")
 
-                if user_login_email == 1 and userlogin_password == 1:
+                if user_login_email == 1 and user_login_password == 1:
+                        LoginWindow_instance.ids.login_button_message.text = "Please wait while verifying the login credentials."
                         email = LoginWindow_instance.ids.login_email.text
                         password = LoginWindow_instance.ids.login_password.text
-                        
+                        loginMessage = loginAndGetRole(email, password)
+                        if loginMessage in ["user", "administrator"]:
+                                current_user_email = email
+                                current_user_role = loginMessage
+                                LoginWindow_instance.ids.login_button_message.text = "Welcome..."
+                        else:
+                                LoginWindow_instance.ids.login_button_message.text = loginMessage
 
 	def verify_email(self):
     #Number of characters
@@ -151,8 +157,6 @@ class MainApp(MDApp):
                         registrationwindow_instance.ids.registration_complete.text = " "
                         email = registrationwindow_instance.ids.email.text
                         password = registrationwindow_instance.ids.password.text
-                        password = password.encode("utf-8")
-                        password = base64.b64encode(password)
                         registrationMessage = registerUser(email, password)
                         if registrationMessage == "Registration was successful.":
                                 registrationwindow_instance.ids.registration_complete.text = "Registration complete"
