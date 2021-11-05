@@ -4,11 +4,18 @@ from validate_email import validate_email
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import ObjectProperty
 import random
+from LoginAndRegister import registerUser, loginAndGetRole, registerAdministrator
 
 user_email = None
 user_password = None
 user_reenter_password = None
 user_captcha = None
+
+user_login_email = None
+user_login_password = None
+
+current_user_email = ""
+current_user_role = ""
 
 text = 'abcdefghijklmnopqrstuvxyz0123456789'
 
@@ -22,20 +29,62 @@ class MainApp(MDApp):
 
 	def verify_login_email(self):
 
-		LoginWindow_instance = self.root.get_screen("Login")
+		LoginWindow_instance = self.root.get_screen("login")
 
-		if validate_email(LoginWindow_instance.ids.email.text) == True:
-			self.root.ids.email_error.text = " "
-		elif validate_email(LoginWindow_instance.ids.email.text) == False:
-			self.root.ids.login_email_error.text = "Please use a valid email address"
+		global user_login_email
+
+		if len(LoginWindow_instance.ids.login_email.text) > 150:
+                        LoginWindow_instance.ids.login_email_error.text = "The character limit for email address is 150."
+                        user_login_email = 0
+		elif len(LoginWindow_instance.ids.login_email.text) == 0:
+                        LoginWindow_instance.ids.login_email_error.text = "Please enter your email address"
+                        user_login_email = 0
+		if validate_email(LoginWindow_instance.ids.login_email.text) == True:
+                        LoginWindow_instance.ids.login_email_error.text = " "
+                        user_login_email = 1
+		elif validate_email(LoginWindow_instance.ids.login_email.text) == False:
+                        LoginWindow_instance.ids.login_email_error.text = "Please use a valid email address"
+                        user_login_email = 0
+
+	def verify_login_password(self):
+
+                LoginWindow_instance = self.root.get_screen("login")
+
+                global user_login_password
+
+                if len(LoginWindow_instance.ids.login_password.text) < 8 or len(LoginWindow_instance.ids.login_password.text) > 20:
+                        LoginWindow_instance.ids.login_password_error.text = "Password length should be 8-20 characters"
+                        user_login_password = 0
+                else:
+                        LoginWindow_instance.ids.login_password_error.text = " "
+                        user_login_password = 1
+
+	def login(self):
+
+                LoginWindow_instance = self.root.get_screen("login")
+
+                if user_login_email == 1 and user_login_password == 1:
+                        LoginWindow_instance.ids.login_button_message.text = "Please wait while verifying the login credentials."
+                        email = LoginWindow_instance.ids.login_email.text
+                        password = LoginWindow_instance.ids.login_password.text
+                        loginMessage = loginAndGetRole(email, password)
+                        if loginMessage in ["user", "administrator"]:
+                                current_user_email = email
+                                current_user_role = loginMessage
+                                LoginWindow_instance.ids.login_button_message.text = "Welcome..."
+                        else:
+                                LoginWindow_instance.ids.login_button_message.text = loginMessage
 
 	def verify_email(self):
     #Number of characters
 
 		registrationwindow_instance = self.root.get_screen("Registration")
 
+		global user_email
+
 		if len(registrationwindow_instance.ids.email.text) > 150:
-			return "The character limit for applicant's email address is 150."
+                                registrationwindow_instance.ids.email_error.text= "The character limit for user's email address is 150."
+                                user_email=0
 		elif len(registrationwindow_instance.ids.email.text) == 0:
 				registrationwindow_instance.ids.email_error.text= "Please enter your email address"
 				user_email=0
@@ -60,12 +109,15 @@ class MainApp(MDApp):
 
 		registrationwindow_instance = self.root.get_screen("Registration")
 
+		global user_captcha
+
 		if registrationwindow_instance.ids.captcha_answer.text == registrationwindow_instance.ids.captcha.text:
 			registrationwindow_instance.ids.captcha_error.text = " "
 			registrationwindow_instance.ids.captcha_validated.text = "Captcha validated."
 			user_captcha=1
 		elif registrationwindow_instance.ids.captcha_answer.text != registrationwindow_instance.ids.captcha.text:
 			registrationwindow_instance.ids.captcha_error.text = "Invalid captcha, please try again"
+			registrationwindow_instance.ids.captcha_validated.text = " "
 			user_captcha=0
 
 
@@ -73,7 +125,8 @@ class MainApp(MDApp):
 	def verify_password(self):
 
 		registrationwindow_instance = self.root.get_screen("Registration")
-
+		
+		global user_password
 
 		if len(registrationwindow_instance.ids.password.text)<8 or len(registrationwindow_instance.ids.password.text)>20:
 			registrationwindow_instance.ids.password_error.text= "Password length should be 8-20 characters"
@@ -87,6 +140,8 @@ class MainApp(MDApp):
 
 		registrationwindow_instance = self.root.get_screen("Registration")
 
+		global user_reenter_password
+
 		if registrationwindow_instance.ids.password.text == registrationwindow_instance.ids.re_enter_password.text:
 			registrationwindow_instance.ids.re_enter_password_error.text=" "
 			user_reenter_password=1
@@ -99,9 +154,16 @@ class MainApp(MDApp):
 		registrationwindow_instance = self.root.get_screen("Registration")
 
 		if user_email==1 and user_password==1 and user_reenter_password==1 and user_captcha==1:
-			print("Registration complete")
+                        registrationwindow_instance.ids.registration_complete.text = " "
+                        email = registrationwindow_instance.ids.email.text
+                        password = registrationwindow_instance.ids.password.text
+                        registrationMessage = registerUser(email, password)
+                        if registrationMessage == "Registration was successful.":
+                                registrationwindow_instance.ids.registration_complete.text = "Registration complete"
+                        else:
+                                registrationwindow_instance.ids.registration_complete.text = str(registrationMessage)
 		else:
-			print("asdasdasd")
+			registrationwindow_instance.ids.registration_complete.text = " "
 
 	def selected(self, filename):
 
