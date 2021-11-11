@@ -4,7 +4,11 @@ from validate_email import validate_email
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import ObjectProperty
 import random
-from LoginAndRegister import registerUser, loginAndGetRole, registerAdministrator
+from LoginAndRegister import registerUser, loginAndGetRole, logoutUserAndAdministrator
+from HelpdeskForm import userSubmitForm, listFormsSubmitted, listAllForms, viewForm, viewImage, setFormAsSolved
+from kivymd.uix.list import OneLineListItem, TwoLineListItem
+import kivymd.uix.label
+import math
 
 user_email = None
 user_password = None
@@ -14,8 +18,7 @@ user_captcha = None
 user_login_email = None
 user_login_password = None
 
-current_user_email = ""
-current_user_role = ""
+
 
 text = 'abcdefghijklmnopqrstuvxyz0123456789'
 
@@ -32,6 +35,8 @@ class MainApp(MDApp):
 		LoginWindow_instance = self.root.get_screen("login")
 
 		global user_login_email
+
+		LoginWindow_instance.ids.login_email.text = LoginWindow_instance.ids.login_email.text.strip()
 
 		if len(LoginWindow_instance.ids.login_email.text) > 150:
                         LoginWindow_instance.ids.login_email_error.text = "The character limit for email address is 150."
@@ -63,9 +68,12 @@ class MainApp(MDApp):
 
                 LoginWindow_instance = self.root.get_screen("login")
 
+                global current_user_email
+                global current_user_role
+
                 if user_login_email == 1 and user_login_password == 1:
                         LoginWindow_instance.ids.login_button_message.text = "Please wait while verifying the login credentials."
-                        email = LoginWindow_instance.ids.login_email.text
+                        email = LoginWindow_instance.ids.login_email.text.strip()
                         password = LoginWindow_instance.ids.login_password.text
                         loginMessage = loginAndGetRole(email, password)
                         if loginMessage in ["user", "administrator"]:
@@ -81,6 +89,8 @@ class MainApp(MDApp):
 		registrationwindow_instance = self.root.get_screen("Registration")
 
 		global user_email
+
+		registrationwindow_instance.ids.email.text = registrationwindow_instance.ids.email.text.strip()
 
 		if len(registrationwindow_instance.ids.email.text) > 150:
                                 registrationwindow_instance.ids.email_error.text= "The character limit for user's email address is 150."
@@ -154,8 +164,8 @@ class MainApp(MDApp):
 		registrationwindow_instance = self.root.get_screen("Registration")
 
 		if user_email==1 and user_password==1 and user_reenter_password==1 and user_captcha==1:
-                        registrationwindow_instance.ids.registration_complete.text = " "
-                        email = registrationwindow_instance.ids.email.text
+                        registrationwindow_instance.ids.registration_complete.text = "Registering..."
+                        email = registrationwindow_instance.ids.email.text.strip()
                         password = registrationwindow_instance.ids.password.text
                         registrationMessage = registerUser(email, password)
                         if registrationMessage == "Registration was successful.":
@@ -164,6 +174,204 @@ class MainApp(MDApp):
                                 registrationwindow_instance.ids.registration_complete.text = str(registrationMessage)
 		else:
 			registrationwindow_instance.ids.registration_complete.text = " "
+
+	def logout(self):
+
+                mainmenu_instance = self.root.get_screen("Main Menu")
+
+                global current_user_email
+                global current_user_role
+
+                mainmenu_instance.ids.logout_button_message.text = "Logging out..."
+                mainmenu_instance.ids.logout_button_message.text = current_user_role
+                logoutMessage = logoutUserAndAdministrator(current_user_email, current_user_role)
+                mainmenu_instance.ids.logout_button_message.text = logoutMessage
+                if logoutMessage == "You have logged out.":
+                        current_user_email = ""
+                        current_user_role = ""
+
+	def checkRole(self):
+
+                return current_user_role
+        
+	def loadSelectedForm(self, num):
+
+                viewhelpdeskform_instance = self.root.get_screen("ViewHelpdeskForm")
+                
+                global formList, currentLastNumber, formDetails
+
+                if currentLastNumber < 0:
+                        return
+                elif currentLastNumber == len(formList) - 1:
+                        remainder = (currentLastNumber + 1)%5
+                        if remainder == 4:
+                                num = num - 1
+                        elif remainder == 3:
+                                num = num - 2
+                        elif remainder == 2:
+                                num = num - 3
+                        elif remainder == 1:
+                                num = num - 4
+                formIndex = currentLastNumber - num
+                if formIndex < len(formList):
+                        formNumber = formList[formIndex][0]
+                if formNumber > 0:
+                        viewhelpdeskform_instance.ids.form_description.text = "Obtaining Helpdesk Form details..."
+                        formDetails = viewForm(current_user_role, current_user_email, formNumber)
+                        if type(formDetails) == str:
+                                viewhelpdeskform_instance.ids.form_description.text = formDetails
+                        else:
+                                formList = None
+                                currentLastNumber = None
+                                viewhelpdeskform_instance.ids.form_description.text = "Loading Helpdesk Form..."
+                                if formDetails[1] == 0:
+                                        formStatus = " (Pending)"
+                                else:
+                                        formStatus = " (Solved)"
+                                helpdeskform_title = "Helpdesk Form Number: " + str(formDetails[1]) + formStatus + "\n"
+                                if len(formDetails) == 6:
+                                        helpdeskform_linebelowtitle = "Admin: " + formDetails[5] + "\n\n"
+                                else:
+                                        helpdeskform_linebelowtitle = "\n\n"
+                                if formDetails[2] != "":
+                                        helpdeskform_email = "User email address: " + formDetails[3] + "\n\n\n"
+                                else:
+                                        helpdeskform_email = "User email address: " + formDetails[2] + "; " + formDetails[3] + "\n\n\n"
+                                helpdeskform_description = formDetails[4]
+                                viewhelpdeskform_instance.form_description.text = helpdeskform_title + helpdeskform_linebelowtitle + helpdeskform_email + helpdeskform_description
+                                if formDetails[6] == 1:
+                                        viewhelpdeskform_instance.opacity = 100
+                                        viewhelpdeskform_instance.form_image.source = formDetails[5]
+
+	def loadFormList(self, previous_or_next):
+
+                helpdeskformlist_instance = self.root.get_screen("HelpdeskFormList")
+
+                global currentLastNumber
+
+                currentList = [["",""],["",""],["",""],["",""],["",""]]
+                
+                if previous_or_next == "previous" and currentLastNumber < 5:
+                        return
+                elif previous_or_next == "next" and currentLastNumber == len(formList) - 1:
+                        return
+
+                if previous_or_next == "previous":
+                        remainder = (currentLastNumber + 1) % 5
+                        if remainder == 0:
+                                currentLastNumber = currentLastNumber - 9
+                        elif remainder == 4:
+                                currentLastNumber = currentLastNumber - 8
+                        elif remainder == 3:
+                                currentLastNumber = currentLastNumber - 7
+                        elif remainder == 2:
+                                currentLastNumber = currentLastNumber - 6
+                        else:
+                                currentLastNumber = currentLastNumber - 5
+                else:
+                        currentLastNumber += 1
+
+                num = 0
+                for currentLastNumber in range(currentLastNumber, len(formList), 1):
+                        form = formList[currentLastNumber]
+                        if form[1] == 0:
+                                formStatus = " (Pending)"
+                        else:
+                                formStatus = " (Solved)"
+                        currentList[num][0] = "Helpdesk Form Number: " + str(form[0]) + formStatus
+                        currentList[num][1] = form[2]
+                        if num < 4:
+                                num += 1
+                        else:
+                                break
+                        if currentLastNumber == len(formList) - 1:
+                                break
+
+                helpdeskformlist_instance.ids.helpdeskformlistitem1.text = currentList[0][0]
+                helpdeskformlist_instance.ids.helpdeskformlistitem1.secondary_text = currentList[0][1]
+                helpdeskformlist_instance.ids.helpdeskformlistitem2.text = currentList[1][0]
+                helpdeskformlist_instance.ids.helpdeskformlistitem2.secondary_text = currentList[1][1]
+                helpdeskformlist_instance.ids.helpdeskformlistitem3.text = currentList[2][0]
+                helpdeskformlist_instance.ids.helpdeskformlistitem3.secondary_text = currentList[2][1]
+                helpdeskformlist_instance.ids.helpdeskformlistitem4.text = currentList[3][0]
+                helpdeskformlist_instance.ids.helpdeskformlistitem4.secondary_text = currentList[3][1]
+                helpdeskformlist_instance.ids.helpdeskformlistitem5.text = currentList[4][0]
+                helpdeskformlist_instance.ids.helpdeskformlistitem5.secondary_text = currentList[4][1]
+
+                currentPage = math.ceil((currentLastNumber + 1) / 5)
+                lastPage = math.ceil(len(formList) / 5)
+                if lastPage > 1:
+                        helpdeskformlist_instance.ids.helpdeskformlist_previous_page_button.disabled = False
+                        helpdeskformlist_instance.ids.helpdeskformlist_previous_page_button.opacity = 100
+                        helpdeskformlist_instance.ids.helpdeskformlist_next_page_button.disabled = False
+                        helpdeskformlist_instance.ids.helpdeskformlist_next_page_button.opacity = 100
+                        helpdeskformlist_instance.ids.helpdeskformlist_page_number_label.text = str(currentPage) + " of " + str(lastPage)
+
+	def loadHelpdeskForms(self, instruction):
+
+                if instruction == "do nothing":
+                        return
+
+                helpdeskformlist_instance = self.root.get_screen("HelpdeskFormList")
+                
+                global formList, currentLastNumber
+
+                if current_user_role == "user":
+                        formList = listFormsSubmitted(current_user_email)
+                else:
+                        formList = listAllForms(current_user_email)
+
+                if type(formList) == str:
+                        helpdeskformlist_instance.ids.view_form_message.text = formList
+                elif len(formList) == 0:
+                        if current_user_role == "user":
+                                helpdeskformlist_instance.ids.view_form_message.text = "You have not submitted any Helpdesk Forms. Submit a Helpdesk Form to tell us your issue."
+                        else:
+                                helpdeskformlist_instance.ids.view_form_message.text = "No Helpdesk Form."
+                else:
+                        currentLastNumber = -1
+                        MainApp.loadFormList(self, "next")
+
+	def clearHelpdeskFormList(self):
+
+                helpdeskformlist_instance = self.root.get_screen("HelpdeskFormList")
+
+                global formList, currentLastNumber, formDetails
+
+                try:
+                        formList = None
+                        currentLastNumber = None
+                        formDetails = None
+                except:
+                        pass
+
+                helpdeskformlist_instance.ids.helpdeskformlistitem1.text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem1.secondary_text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem2.text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem2.secondary_text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem3.text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem3.secondary_text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem4.text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem4.secondary_text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem5.text = ""
+                helpdeskformlist_instance.ids.helpdeskformlistitem5.secondary_text = ""
+                helpdeskformlist_instance.ids.helpdeskformlist_previous_page_button.disabled = True
+                helpdeskformlist_instance.ids.helpdeskformlist_previous_page_button.opacity = 0
+                helpdeskformlist_instance.ids.helpdeskformlist_next_page_button.disabled = True
+                helpdeskformlist_instance.ids.helpdeskformlist_next_page_button.opacity = 0
+                helpdeskformlist_instance.ids.helpdeskformlist_page_number_label.text = ""
+                helpdeskformlist_instance.ids.view_form_message.text = ""
+
+	def setSolved(self):
+
+                viewhelpdeskform_instance = self.root.get_screen("ViewHelpdeskForm")
+
+                if current_user_role == "administrator":
+                        solvedMessage = setFormAsSolved(current_user_email, formDetails[0])
+                        viewhelpdeskform_instance.solved_message.text = solvedMessage
+                        if solvedMessage == "Status is updated.":
+                                formDetails[1] = 1
+                                viewhelpdeskform_instance.form_description.text = viewhelpdeskform_instance.form_description.text.replace("Pending", "Solved", 1)
 
 	def selected(self, filename):
 
@@ -174,6 +382,25 @@ class MainApp(MDApp):
 		except:
 			pass
 
+	def submitForm(self):
+
+                helpdeskform_instance = self.root.get_screen("Helpdesk form")
+
+                formEmail = helpdeskform_instance.ids.user_email_address.text.strip()
+                description = helpdeskform_instance.ids.issue.text.strip()
+
+                if len(formEmail) > 150:
+                        helpdeskform_instance.ids.user_email_error.text= "The character limit for user's email address is 150."
+                elif len(formEmail) > 0 and validate_email(formEmail) == False:
+                        helpdeskform_instance.ids.user_email_error.text= "Please use a valid email address"
+                else:
+                        helpdeskform_instance.ids.user_email_error.text = ""
+                        if len(description) > 0 and current_user_role == "user":
+                                fileDirectory = helpdeskform_instance.ids.file_directory.text.strip()
+                                helpdeskform_instance.ids.file_directory.text = "Submitting Helpdesk Form..."
+                                formMessage = userSubmitForm(current_user_email, formEmail, description, fileDirectory)
+                                helpdeskform_instance.ids.file_directory.text = formMessage
+
 class LoginWindow(Screen):
 	pass
 
@@ -182,6 +409,12 @@ class registrationwindow(Screen):
 
 class mainmenu(Screen):
 	pass
+
+class helpdeskformlist(Screen):
+        pass
+
+class viewhelpdeskform(Screen):
+        pass
 
 class helpdeskform(Screen):
 	pass
@@ -194,3 +427,4 @@ class WindowManager(ScreenManager):
 
 if __name__ == '__main__':
 	MainApp().run()
+
