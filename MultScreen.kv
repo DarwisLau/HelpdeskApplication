@@ -4,6 +4,8 @@ WindowManager:
 	mainmenu:
 	chooserpage:
 	helpdeskform:
+	helpdeskformlist:
+	viewhelpdeskform:
 
 <LoginWindow>:
 	name: "login"
@@ -85,7 +87,10 @@ WindowManager:
 		pos_hint: {"x":238/800, "y": 225/500}
 		on_press: 
 			app.verify_login_email(); app.verify_login_password(); app.login()
+			root.ids.login_email.text = "" if login_button_message.text == "Welcome..." else login_email.text
+			root.ids.login_password.text = ""
 			app.root.current = "Main Menu" if login_button_message.text == "Welcome..." else "login"
+			root.ids.login_button_message.text = "" if login_button_message.text == "Welcome..." else login_button_message.text
 			root.manager.transition.direction = "up"
 
 	MDLabel:
@@ -102,6 +107,10 @@ WindowManager:
 		font_size: 14
 		pos_hint: {"x":358/800, "y":245/500}
 		on_press: 
+			root.ids.login_email.text = ""
+			root.ids.login_email_error.text = ""
+			root.ids.login_password.text = ""
+			root.ids.login_password_error.text = ""
 			app.root.current = "Registration"
 			root.manager.transition.direction = "left"
 			
@@ -314,8 +323,19 @@ WindowManager:
 		pos_hint:{"x":0.75,"y":0.85}
 		text_color:("#99c742")
 		on_press: 
-			app.root.current = "login"
+			app.logout()
+			app.root.current = "login" if logout_button_message.text == "You have logged out." else "Main Menu"
+			root.ids.logout_button_message.text = "" if logout_button_message.text == "You have logged out." else logout_button_message.text
 			root.manager.transition.direction = "down"
+
+	MDLabel:
+		id: logout_button_message
+		text: " "
+		font_size: 15
+		size_hint_y: None
+		pos_hint:{"x":0.75,"y":0.79}
+		height: self.texture_size[1]
+		padding_y: 15
 
 	MDLabel:
 		text:"Helpdesk Application"
@@ -355,9 +375,10 @@ WindowManager:
 		pos_hint: {"x":15/800, "y": 280/500}
 		text_color:("#99c742")
 		on_press: 
-			app.root.current = "Helpdesk form"
+			app.root.current = "Helpdesk form" if app.checkRole() == "user" else "HelpdeskFormList"
+			app.loadHelpdeskForms("do nothing")
 			root.manager.transition.direction = "left"
-
+	
 <helpdeskform>:
 	name:"Helpdesk form"
 
@@ -368,8 +389,26 @@ WindowManager:
 		pos_hint:{"x":0.75,"y":0.85}
 		text_color:("#99c742")
 		on_press: 
+			root.ids.user_email_address.text = ""
+			root.ids.user_email_error.text = ""
+			root.ids.issue.text = ""
 			app.root.current = "Main Menu"
-			root.manager.transition.direction = "down"
+			root.manager.transition.direction = "right"
+
+	MDRectangleFlatButton:
+		text:"View Form"
+		font_size: 15
+		size_hint_y: None
+		pos_hint: {"x":0.60,"y":0.85}
+		text_color:("#99c742")
+		on_press:
+			root.ids.user_email_address.text = ""
+			root.ids.user_email_error.text = ""
+			root.ids.issue.text = ""
+			app.loadHelpdeskForms("")
+			app.root.current = "HelpdeskFormList"
+			root.manager.transition.direction = "left"
+
 	MDLabel:
 		text:"Helpdesk Form"
 		font_style: "H4"
@@ -399,15 +438,15 @@ WindowManager:
 		font_size: 15
 
 	MDLabel:
-		id: email_error
+		id: user_email_error
 		text: " "
 		size_hint_y: None
 		font_size: 15
-		pos_hint: {"x":165/800,"y":325/500}
+		pos_hint: {"x":165/800,"y":290/500}
 		canvas.before:
 			Color:
 				rgba: (0,0,0,1)
-		color: ("#673ab7")		
+		color: ("#FF0000")		
 
 	MDLabel:
 		text:"Describe your issue here:"
@@ -438,7 +477,7 @@ WindowManager:
 		pos_hint:{"x":150/800,"y":70/500}
 		text_color:("#99c742")
 		on_press: 
-			app.root.current = "chooser"
+			app.root.current = "chooser" 
 			root.manager.transition.direction = "left"		
 
 	MDRectangleFlatIconButton:
@@ -448,6 +487,13 @@ WindowManager:
 		size_hint_y: None
 		pos_hint:{"x":485/800,"y":70/500}
 		text_color:("#99c742")
+		on_press:
+			app.submitForm()
+			app.root.current = "Main Menu" if file_directory.text == "Helpdesk Form is submitted." else "Helpdesk form"
+			root.ids.user_email_address.text = "" if file_directory.text == "Helpdesk Form is submitted." else user_email_address.text
+			root.ids.issue.text = "" if file_directory.text == "Helpdesk Form is submitted." else root.ids.issue.text
+			root.ids.file_directory.text = "" if file_directory.text == "Helpdesk Form is submitted." else file_directory.text
+			root.manager.transition.direction = "down"
 
 	MDLabel:
 		id: file_directory
@@ -475,3 +521,188 @@ WindowManager:
 		on_press: 
 			app.selected(filechooser.selection)
 			app.root.current = "Helpdesk form"
+
+<helpdeskformlist>
+	name:"HelpdeskFormList"
+
+	ScrollView:
+		do_scroll_x  : False
+		MDList:
+
+			MDRectangleFlatIconButton:
+				text:"Back"
+				font_size: 15
+				size_hint_y: None
+				pos_hint: {"right":1}
+				text_color:("#99c742")
+				on_press:
+					app.clearHelpdeskFormList() 
+					app.root.current = "Helpdesk form" if app.checkRole() == "user" else "Main Menu"
+					root.manager.transition.direction = "right"
+
+			MDLabel:
+				text:"List of Helpdesk Forms"
+				id: helpdeskformlist_title
+				font_style: "H4"
+				size_hint_y: None
+				height: self.texture_size[1]
+				padding_y:15
+
+			MDList:
+				id: helpdeskformlist_list
+
+				TwoLineListItem:
+					id: helpdeskformlistitem1
+					text: ""
+					secondary_text: ""
+					on_press: 
+						app.loadSelectedForm(4)
+						app.root.current = "ViewHelpdeskForm"
+						root.ids.set_as_solved_button.disabled = True if app.checkRole() == "user" else False
+						root.ids.set_as_solved_button.opacity = 0 if app.checkRole() == "user" else 100
+						root.manager.transition.direction = "left"
+
+				TwoLineListItem:
+					id: helpdeskformlistitem2
+					text: ""
+					secondary_text: ""
+					on_press: 
+						app.loadSelectedForm(3)
+						app.root.current = "ViewHelpdeskForm"
+						root.ids.set_as_solved_button.disabled = True if app.checkRole() == "user" else False
+						root.ids.set_as_solved_button.opacity = 0 if app.checkRole() == "user" else 100
+						root.manager.transition.direction = "left"
+
+				TwoLineListItem:
+					id: helpdeskformlistitem3
+					text: ""
+					secondary_text: ""
+					on_press: 
+						app.loadSelectedForm(2)
+						app.root.current = "ViewHelpdeskForm"
+						root.ids.set_as_solved_button.disabled = True if app.checkRole() == "user" else False
+						root.ids.set_as_solved_button.opacity = 0 if app.checkRole() == "user" else 100
+						root.manager.transition.direction = "left"
+
+				TwoLineListItem:
+					id: helpdeskformlistitem4
+					text: ""
+					secondary_text: ""
+					on_press: 
+						app.loadSelectedForm(1)
+						app.root.current = "ViewHelpdeskForm"
+						root.ids.set_as_solved_button.disabled = True if app.checkRole() == "user" else False
+						root.ids.set_as_solved_button.opacity = 0 if app.checkRole() == "user" else 100
+						root.manager.transition.direction = "left"
+
+				TwoLineListItem:
+					id: helpdeskformlistitem5
+					text: ""
+					secondary_text: ""
+					on_press: 
+						app.loadSelectedForm(0)				
+						app.root.current = "ViewHelpdeskForm"
+						root.ids.set_as_solved_button.disabled = True if app.checkRole() == "user" else False
+						root.ids.set_as_solved_button.opacity = 0 if app.checkRole() == "user" else 100
+						root.manager.transition.direction = "left"
+
+			MDBoxLayout:
+				MDRectangleFlatButton:
+					text: "Previous Page"
+					id: helpdeskformlist_previous_page_button
+					disabled: True
+					opacity: 0
+					font_size: 15
+					size_hint_y: None
+					text_color:("#99c742")
+					on_press:
+						app.loadFormList("previous")
+
+				MDLabel:
+					id: helpdeskformlist_page_number_label
+					text: ""
+					font_size: 10
+					size_hint_y: None
+					height: self.texture_size[1]
+
+				MDRectangleFlatButton:
+					text: "Next Page"
+					id: helpdeskformlist_next_page_button
+					disabled: True
+					opacity: 0
+					font_size: 15
+					size_hint_y: None
+					text_color:("#99c742")
+					on_press:
+						app.loadFormList("next")
+				
+			MDRectangleFlatButton:
+				text:"New Form"
+				id: new_form_button
+				font_size: 15
+				size_hint_y: None
+				text_color:("#99c742")
+				on_press:
+					app.clearHelpdeskForm()
+					app.root.current = "Helpdesk form"
+					root.manager.transition.direction = "right"
+
+			MDLabel:
+				id: view_form_message
+				text:" "
+				size_hint_y: None
+				font_size: 15
+				height: self.texture_size[1]
+
+<viewhelpdeskform>
+	name:"ViewHelpdeskForm"
+	
+	ScrollView:
+		do_scroll_x: False
+		MDList:
+			MDRectangleFlatIconButton:
+				text:"Back"
+				font_size: 15
+				size_hint_y: None
+				pos_hint: {"right":1}
+				text_color:("#99c742")
+				on_press: 
+					root.ids.form_description.text = ""
+					root.ids.form_image.source = None
+					app.clearHelpdeskForm()
+					app.root.current = "HelpdeskFormList"
+					root.manager.transition.direction = "right"
+
+			MDLabel:
+				text:"View Helpdesk Forms"
+				font_style: "H4"
+				size_hint_y: None
+				height: self.texture_size[1]
+				padding_y:15
+
+			MDLabel:
+				id: form_description
+				text:""
+				size_hint_y: None
+				font_size:20
+				height: self.texture_size[1]
+
+			Image:
+				id: form_image
+				source: None
+
+			MDRectangleFlatButton:
+				text:"Set As Solved"
+				id: set_as_solved_button
+				font_size: 15
+				size_hint_y: None
+				text_color:("#99c742")
+				on_press:
+					app.setSolved()
+
+			MDLabel:
+				id: solved_message
+				text:""
+				size_hint_y: None
+				font_size:20
+				height: self.texture_size[1]
