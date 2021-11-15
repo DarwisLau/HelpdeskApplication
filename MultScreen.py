@@ -1,4 +1,4 @@
-from kivy.lang import Builder
+rom kivy.lang import Builder
 from kivymd.app import MDApp
 from validate_email import validate_email
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -222,7 +222,10 @@ class MainApp(MDApp):
                         viewhelpdeskform_instance.ids.set_as_solved_button.opacity = 0
                 if currentLastNumber == len(formList) - 1 and num < 5:
                         remainder = (currentLastNumber + 1)%5
-                        diff = remainder - num
+                        if remainder > 0:
+                                diff = remainder - num
+                        else:
+                                diff = 0
                 else:
                         diff = 5 - num
                 formIndex = currentLastNumber - diff
@@ -502,11 +505,13 @@ class MainApp(MDApp):
                 addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
                 faq_category_dropdown.open(addeditdeletefaqpage1_instance.ids.faq_category_button)
 
-        def dismissCategoryDropDown(self):
+        def dismissCategoryDropDown(self, category):
 
                 global faq_category_dropdown
                 faq_category_dropdown.dismiss()
-                del faq_category.dropdown
+                del faq_category_dropdown
+                addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
+                addeditdeletefaqpage1_instance.ids.faq_category_button.text = category
 
         def checkFAQ(self, page):
 
@@ -582,56 +587,6 @@ class MainApp(MDApp):
 
                 return hasError
 
-        def uploadFAQ(self):
-
-                if MainApp.checkFAQ(self, "") == 1:
-                        return
-
-                addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
-                addeditdeletefaqpage2_instance = self.root.get_screen("AddEditDeleteFAQPage2")
-                addeditdeletefaqpage2_instance.ids.faq_upload_error.text = "FAQ is edited."
-                return
-                title = addeditdeletefaqpage1_instance.ids.faq_title.text.strip()
-
-                if addeditdeletefaqpage1_instance.ids.faq_computer_togglebutton.state == "down":
-                        isForComputer = 1
-                else:
-                        isForComputer = 0
-
-                if addeditdeletefaqpage1_instance.ids.faq_smartphone_togglebutton.state == "down":
-                        isForSmartphone = 1
-                else:
-                        isForSmartphone = 0
-
-                category = addeditdeletefaqpage1_instance.ids.faq_category_button.text.lower()
-                subcategory = addeditdeletefaqpage1_instance.ids.faq_subcategory.text.strip()
-                keywords = addeditdeletefaqpage1_instance.ids.faq_keywords.text.strip()
-                partName = addeditdeletefaqpage2_instance.ids.faq_partname.text.strip()
-                url = addeditdeletefaqpage2_instance.ids.faq_url_error.text.strip()
-                content = addeditdeletefaqpage2_instance.ids.faq_content.text.strip()
-
-                if CURRENT_USER_ROLE == "administrator":
-                        if addeditdeletefaqpage2_instance.ids.addeditdeletefaqpage2_title.text == "Add FAQ (Page 2)":
-                                uploadMessage = addFAQ(CURRENT_USER_EMAIL, isForComputer, isForSmartphone, category, title, keyword, subcategory, content, partName, url)
-                        else:
-                                uploadMessage = editFAQ(CURRENT_USER_EMAIL, formDetails[0], isForComputer, isForSmartphone, category, title, keyword, subcategory, content, partName, url)
-                                if uploadMessage == "FAQ is edited.":
-                                        addeditdeletefaqpage2_instance.ids.faq_upload_error.text_color = 255,255,255,1
-                        addeditdeletefaqpage2_instance.ids.faq_upload_error.text = str(uploadMessage)
-
-        def removeFAQ(self):
-
-                addeditdeletefaqpage1_instance = self.root.get_screen("AddEditdeleteFAQPage1")
-                addeditdeletefaqpage2_instance = self.root.get_screen("AddEditDeleteFAQPage2")
-
-                deleteMessage = deleteFAQ(CURRENT_USER_EMAIL, faqDetails[0])
-                if MainApp.root.current == "AddEditDeleteFAQPage1":
-                        addeditdeletefaqpage1_instance.faq_delete_error.text = str(deleteMessage)
-                else:
-                        addeditdeletefaqpage2_instance.faq_upload_error.text = str(deleteMessage)
-                if deleteMessage == "FAQ is deleted.":
-                        del formDetails
-
         def loadSelectedFAQ(self, num):
 
                 if num == 0:
@@ -649,21 +604,25 @@ class MainApp(MDApp):
 
                 if CURRENT_USER_ROLE == "administrator":
                         viewfaq_instance.ids.helpful_button.text = "Edit"
-                if faqcurrentLastNumber == len(faqList) - 1 and num < 5:
-                        remainder = (faqcurrentLastNumber + 1)%5
-                        diff = remainder - num
+                if faqcurrentLastNumber == len(faqList) - 1 and num < 4:
+                        remainder = (faqcurrentLastNumber + 1)%4
+                        if remainder > 0:
+                                diff = remainder - num
+                        else:
+                                diff = 0
                 else:
-                        diff = 5 - num
+                        diff = 4 - num
                 faqIndex = faqcurrentLastNumber - diff
                 faqNumber = faqList[faqIndex][0]
-                viewfaq_instance.ids.form_description.text = "Obtaining FAQ details..."
+                viewfaq_instance.ids.faq_description.text = "Obtaining FAQ details..."
                 faqDetails = viewFAQ(CURRENT_USER_ROLE, CURRENT_USER_EMAIL, faqNumber)
-                if type(faqDetails) != list:
+                if type(faqDetails) != tuple:
                         viewfaq_instance.ids.helpful_message.text = str(faqDetails)
                 else:
                         viewfaq_instance.ids.faq_description.text = "Loading FAQ..."
                         faqTitle = "Title: " + faqDetails[4] + "\n"
-                        faqCat = faqDetails[3][1].upper()
+                        faqEd = "Last edited: " + faqDetails[11] + ", " + str(faqDetails[10]) + "\n\n"
+                        faqCat = faqDetails[3][0].upper() + faqDetails[3][1:]
                         faqCategory = "Category: " + faqCat + "\n"
                         if faqDetails[2] == 0:
                                 faqDevice = "For: computer\n"
@@ -684,11 +643,12 @@ class MainApp(MDApp):
                                 faqPart = "\n\nPart name: " + formDetails[8] + "\nURL: " + formDetails[9]
                         else:
                                 faqPart = ""
-                        if formDetails[10] == 1:
-                                viewfaq_instance.ids.helpful_button.text = "Not Helpful"
-                        else:
-                                viewfaq_instance.ids.helpful_button.text = "Helpful"
-                        viewfaq_instance.ids.faq_description.text = faqTitle + faqCategory + faqCategory + faqDevice + faqKeywordsSubcategory + faqContent + faqPart
+                        if CURRENT_USER_ROLE == "user":
+                                if faqDetails[10] == 1:
+                                        viewfaq_instance.ids.helpful_button.text = "Not Helpful"
+                                else:
+                                        viewfaq_instance.ids.helpful_button.text = "Helpful"
+                        viewfaq_instance.ids.faq_description.text = faqTitle + faqEd + faqCategory + faqDevice + faqKeywordsSubcategory + faqContent + faqPart
 
         def loadFAQList(self, previous_or_next):
 
@@ -696,30 +656,26 @@ class MainApp(MDApp):
 
                 global faqcurrentLastNumber
 
-                faqcurrentList = [["","",""],["","",""],["","",""],["","",""],["","",""]]
+                faqcurrentList = [["","",""],["","",""],["","",""],["","",""]]
                 
-                if previous_or_next == "previous" and faqcurrentLastNumber < 5:
+                if previous_or_next == "previous" and faqcurrentLastNumber < 4:
                         return
                 elif previous_or_next == "next" and faqcurrentLastNumber == len(faqList) - 1:
                         return
 
                 if previous_or_next == "previous":
-                        remainder = (faqcurrentLastNumber + 1) % 5
+                        remainder = (faqcurrentLastNumber + 1) % 4
                         if remainder == 0:
-                                faqcurrentLastNumber = faqcurrentLastNumber - 9
-                        elif remainder == 4:
-                                faqcurrentLastNumber = faqcurrentLastNumber - 8
-                        elif remainder == 3:
                                 faqcurrentLastNumber = faqcurrentLastNumber - 7
-                        elif remainder == 2:
+                        elif remainder == 3:
                                 faqcurrentLastNumber = faqcurrentLastNumber - 6
-                        else:
+                        elif remainder == 2:
                                 faqcurrentLastNumber = faqcurrentLastNumber - 5
-                elif previous_or_next == "reload":
-                        remainder = (faqcurrentLastNumber + 1) % 5
-                        if remainder == 0:
+                        else:
                                 faqcurrentLastNumber = faqcurrentLastNumber - 4
-                        elif remainder == 4:
+                elif previous_or_next == "reload":
+                        remainder = (faqcurrentLastNumber + 1) % 4
+                        if remainder == 0:
                                 faqcurrentLastNumber = faqcurrentLastNumber - 3
                         elif remainder == 3:
                                 faqcurrentLastNumber = faqcurrentLastNumber - 2
@@ -733,53 +689,70 @@ class MainApp(MDApp):
                         faq = faqList[faqcurrentLastNumber]
                         faqcurrentList[num][0] = "Title: " + faq[4]
                         faqCategory = faq[3][0].upper() + faq[3][1:]
-                        faqcurrentList[num][1] = "Category: " + faqCategory
-                        faqcurrentList[num][2] = ""
-                        if num < 4:
+                        if faq[1] == 1 and faq[2] == 1:
+                                faqcomsma = "Computer, Smartphone"
+                        elif faq[2] == 1:
+                                faqcomsma = "Smartphone"
+                        else:
+                                faqcomsma = "Computer"
+                        faqcurrentList[num][1] = "Category: " + faqCategory + "; Device: " + faqcomsma
+                        faqcurrentList[num][2] = "Last edited: " + str(faq[5]) + "; Rating: " + str(faq[6])
+                        if num < 3:
                                 num += 1
                         else:
                                 break
                         if faqcurrentLastNumber == len(faqList) - 1:
                                 break
 
-                faqlist_instance.ids.faqlistitem1.text = currentList[0][0]
-                faqlist_instance.ids.faqlistitem1.secondary_text = currentList[0][1]
-                faqlist_instance.ids.faqlistitem2.text = currentList[1][0]
-                faqlist_instance.ids.faqlistitem2.secondary_text = currentList[1][1]
-                faqlist_instance.ids.faqlistitem3.text = currentList[2][0]
-                faqlist_instance.ids.faqlistitem3.secondary_text = currentList[2][1]
-                faqlist_instance.ids.faqlistitem4.text = currentList[3][0]
-                faqlist_instance.ids.faqlistitem4.secondary_text = currentList[3][1]
-                faqlist_instance.ids.faqlistitem5.text = currentList[4][0]
-                faqlist_instance.ids.faqlistitem5.secondary_text = currentList[4][1]
+                faqlist_instance.ids.faqlistitem1.text = faqcurrentList[0][0]
+                faqlist_instance.ids.faqlistitem1.secondary_text = faqcurrentList[0][1]
+                faqlist_instance.ids.faqlistitem1.tertiary_text = faqcurrentList[0][2]
+                faqlist_instance.ids.faqlistitem2.text = faqcurrentList[1][0]
+                faqlist_instance.ids.faqlistitem2.secondary_text = faqcurrentList[1][1]
+                faqlist_instance.ids.faqlistitem2.tertiary_text = faqcurrentList[1][2]
+                faqlist_instance.ids.faqlistitem3.text = faqcurrentList[2][0]
+                faqlist_instance.ids.faqlistitem3.secondary_text = faqcurrentList[2][1]
+                faqlist_instance.ids.faqlistitem3.tertiary_text = faqcurrentList[2][2]
+                faqlist_instance.ids.faqlistitem4.text = faqcurrentList[3][0]
+                faqlist_instance.ids.faqlistitem4.secondary_text = faqcurrentList[3][1]
+                faqlist_instance.ids.faqlistitem4.tertiary_text = faqcurrentList[3][2]
 
-                faqcurrentPage = math.ceil((faqcurrentLastNumber + 1) / 5)
-                faqlastPage = math.ceil(len(faqList) / 5)
-                if lastPage > 1:
+                faqcurrentPage = math.ceil((faqcurrentLastNumber + 1) / 4)
+                faqlastPage = math.ceil(len(faqList) / 4)
+                if faqlastPage > 1:
                         faqlist_instance.ids.faqlist_previous_page_button.disabled = False
                         faqlist_instance.ids.faqlist_previous_page_button.opacity = 1
                         faqlist_instance.ids.faqlist_next_page_button.disabled = False
                         faqlist_instance.ids.faqlist_next_page_button.opacity = 1
                         faqlist_instance.ids.faqlist_page_number_label.text = "Page " + str(faqcurrentPage) + " of " + str(faqlastPage)
 
+        def isInCat(faq):
+
+                if faq[3] == FAQ_CATDEV:
+                        return 1
+                return 0
+
         def rearrangeFAQ(self):
 
                 global faqList, faqcurrentLastNumber
 
-                if FORM_SORT_PREFERENCE == "ascending":
+                if FAQ_SORT_PREFERENCE == "ascending":
                         faqList.sort(key = lambda faq : faq[4])
-                elif FORM_SORT_PREFERENCE == "descending":
-                        formList.sort(key = lambda faq : faq[4], reverse = True)
-                elif FORM_SORT_PREFERENCE == "latest":
-                        formList.sort(key = lambda faq : faq[5], reverse = True)
-                elif FORM_SORT_PREFERENCE == "helpful":
-                        formList.sort(key = lambda faq : faq[6], reverse = True)
-                elif FORM_SORT_PREFERENCE == "computer":
-                        formList.sort(key = lambda faq : faq[1], reverse = True)
-                elif FORM_SORT_PREFERENCE == "smartphone":
-                        formList.sort(key = lambda faq : faq[2], reverse = True)
-                elif FORM_SORT_PREFERENCE == "computer":
-                        formList.sort(key = lambda faq : faq[1], reverse = True)
+                elif FAQ_SORT_PREFERENCE == "descending":
+                        faqList.sort(key = lambda faq : faq[4], reverse = True)
+                elif FAQ_SORT_PREFERENCE == "date":
+                        faqList.sort(key = lambda faq : faq[5], reverse = True)
+                else:
+                        faqList.sort(key = lambda faq : faq[6], reverse = True)
+
+                if FAQ_CATDEV == "computer":
+                        faqList.sort(key = lambda faq : faq[1], reverse = True)
+                elif FAQ_CATDEV == "smartphone":
+                        faqList.sort(key = lambda faq : faq[2], reverse = True)
+                elif FAQ_CATDEV == "all":
+                        pass
+                else:
+                        faqList.sort(key = MainApp.isInCat, reverse = True)
 
                 faqcurrentLastNumber = -1
                 MainApp.loadFAQList(self, "next")
@@ -788,7 +761,7 @@ class MainApp(MDApp):
 
                 faqlist_instance = self.root.get_screen("FAQList")
                 
-                global faqList, FAQ_SORT_PREFERENCE
+                global faqList, FAQ_SORT_PREFERENCE,FAQ_CATDEV
 
                 faqList = getAllFAQs(CURRENT_USER_ROLE, CURRENT_USER_EMAIL)
 
@@ -801,11 +774,17 @@ class MainApp(MDApp):
                                 MainApp.rearrangeFAQ(self)
                         except:
                                 FAQ_SORT_PREFERENCE = "ascending"
-                                MainApp.rearrangeFAQ(self)
+                                try:
+                                        MainApp.rearrangeFAQ(self)
+                                except:
+                                        FAQ_CATDEV = "all"
+                                        MainApp.rearrangeFAQ(self)
 
         def searchFAQs(self):
 
                 faqlist_instance = self.root.get_screen("FAQList")
+
+                global faqList
 
                 if faqlist_instance.ids.faqlistitem1.text == "There is no FAQ available.":
                         return
@@ -822,13 +801,17 @@ class MainApp(MDApp):
                 if type(faqList) != list:
                         faqlist_instance.ids.view_faq_message.text = str(faqList)
                 elif len(faqList) == 0:
-                        faqlist_instance.ids.faqlistitem1.text = "There is no FAQ which matches the words. Try other words and see."
+                        faqlist_instance.ids.faqlistitem1.text = "There is no FAQ which matches the words. Try other words and see?"
                 else:
                         try:
                                 MainApp.rearrangeFAQ(self)
                         except:
                                 FAQ_SORT_PREFERENCE = "ascending"
-                                MainApp.rearrangeFAQ(self)
+                                try:
+                                        MainApp.rearrangeFAQ(self)
+                                except:
+                                        FAQ_CATDEV = "all"
+                                        MainApp.rearrangeFAQ(self)
 
         def setFAQSortPreference(self, preference):
 
@@ -836,22 +819,149 @@ class MainApp(MDApp):
 
                 FAQ_SORT_PREFERENCE = preference
 
+        def faqOpenSort(self):
+
+                global faq_sort_dropdown
+                faq_sort_dropdown = FAQlist_sort_dropdown()
+                faqlist_instance = self.root.get_screen("FAQList")
+                faq_sort_dropdown.open(faqlist_instance.ids.faqlist_sort_button)
+
+        def dismissfaqsortDropDown(self):
+
+                global faq_sort_dropdown
+                faq_sort_dropdown.dismiss()
+                del faq_sort_dropdown
+
+        def faqOpencategorydevice(self):
+
+                global faq_catdev_dropdown
+                faq_catdev_dropdown = FAQlist_catdev_dropdown()
+                faqlist_instance = self.root.get_screen("FAQList")
+                faq_catdev_dropdown.open(faqlist_instance.ids.faqlist_catdev_button)
+
+        def dismissfaqcatdevDropDown(self):
+
+                global faq_catdev_dropdown
+                faq_catdev_dropdown.dismiss()
+                del faq_catdev_dropdown
+
+        def setFAQcatdev(self, catdev):
+
+                global FAQ_CATDEV
+                FAQ_CATDEV = catdev
+
+        def clearFAQList(self, clear):
+
+                if clear == "faqDetailsOnly":
+                        viewfaq_instance = self.root.get_screen("ViewFAQ")
+                        viewfaq_instance.ids.faq_description.text = "" 
+                        viewfaq_instance.ids.helpful_message.text = ""
+                        try:
+                                global faqDetails
+                                del faqDetails
+                        except NameError:
+                                pass
+                        finally:
+                                return
+
+                faqlist_instance = self.root.get_screen("FAQList")
+
+                try:
+                        global faqList, faqcurrentLastNumber
+                        del faqList
+                        del faqcurrentLastNumber
+                except NameError:
+                        pass
+
+                faqlist_instance.ids.faqlistitem1.text = ""
+                faqlist_instance.ids.faqlistitem1.secondary_text = ""
+                faqlist_instance.ids.faqlistitem1.tertiary_text = ""
+                faqlist_instance.ids.faqlistitem2.text = ""
+                faqlist_instance.ids.faqlistitem2.secondary_text = ""
+                faqlist_instance.ids.faqlistitem2.tertiary_text = ""
+                faqlist_instance.ids.faqlistitem3.text = ""
+                faqlist_instance.ids.faqlistitem3.secondary_text = ""
+                faqlist_instance.ids.faqlistitem3.tertiary_text = ""
+                faqlist_instance.ids.faqlistitem4.text = ""
+                faqlist_instance.ids.faqlistitem4.secondary_text = ""
+                faqlist_instance.ids.faqlistitem4.tertiary_text = ""
+                faqlist_instance.ids.faqlist_previous_page_button.disabled = True
+                faqlist_instance.ids.faqlist_previous_page_button.opacity = 0
+                faqlist_instance.ids.faqlist_next_page_button.disabled = True
+                faqlist_instance.ids.faqlist_next_page_button.opacity = 0
+                faqlist_instance.ids.faqlist_page_number_label.text = ""
+                faqlist_instance.ids.view_faq_message.text = ""
+                if clear == "notsearch":
+                        return
+                faqlist_instance.ids.faq_search_word.text = ""
+
         def setAddFAQ(self):
 
                 addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
                 addeditdeletefaqpage2_instance = self.root.get_screen("AddEditDeleteFAQPage2")
 
                 addeditdeletefaqpage1_instance.ids.addeditdeletefaqpage1_title.text = "Add FAQ (Page 1)"
-                addeditdeletefaqpage1_instance.ids.faq1_menu_button.disabled = True
-                addeditdeletefaqpage1_instance.ids.faq1_menu_button.opacity = 0
+                addeditdeletefaqpage1_instance.ids.faq1_menu_button.text = "FAQs"
                 addeditdeletefaqpage1_instance.ids.faq1_delete_button.disabled = True
                 addeditdeletefaqpage1_instance.ids.faq1_delete_button.opacity = 0
 
                 addeditdeletefaqpage2_instance.ids.addeditdeletefaqpage2_title.text = "Add FAQ (Page 2)"
-                addeditdeletefaqpage2_instance.ids.faq2_menu_button.disabled = True
-                addeditdeletefaqpage2_instance.ids.faq2_menu_button.opacity = 0
+                addeditdeletefaqpage2_instance.ids.faq2_menu_button.text = "FAQs"
                 addeditdeletefaqpage2_instance.ids.faq2_delete_button.disabled = True
                 addeditdeletefaqpage2_instance.ids.faq2_delete_button.opacity = 0
+
+        def setEditFAQ(self):
+
+                addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
+                addeditdeletefaqpage2_instance = self.root.get_screen("AddEditDeleteFAQPage2")
+
+                addeditdeletefaqpage1_instance.ids.addeditdeletefaqpage1_title.text = "Edit FAQ (Page 1)"
+                addeditdeletefaqpage1_instance.ids.faq1_menu_button.text = "Menu"
+                addeditdeletefaqpage1_instance.ids.faq1_delete_button.disabled = False
+                addeditdeletefaqpage1_instance.ids.faq1_delete_button.opacity = 1
+                addeditdeletefaqpage1_instance.ids.faq_title.text = faqDetails[4]
+                if faqDetails[1] == 1:
+                        addeditdeletefaqpage1_instance.ids.computer_togglebutton.state = "down"
+                else:
+                        addeditdeletefaqpage1_instance.ids.computer_togglebutton.state = "normal"
+                if faqDetails[2] == 1:
+                        addeditdeletefaqpage1_instance.ids.smartphone_togglebutton.state = "down"
+                else:
+                        addeditdeletefaqpage1_instance.ids.smartphone_togglebutton.state = "normal"
+                addeditdeletefaqpage1_instance.ids.faq_category_button.text = faqDetails[3][0].upper() + faqDetails[3][1:]
+                addeditdeletefaqpage1_instance.ids.faq_subcategory.text = faqDetails[6]
+                addeditdeletefaqpage1_instance.ids.faq_keywords.text = faqDetails[5]
+
+                addeditdeletefaqpage2_instance.ids.addeditdeletefaqpage2_title.text = "Edit FAQ (Page 2)"
+                addeditdeletefaqpage2_instance.ids.faq2_menu_button.text = "Menu"
+                addeditdeletefaqpage2_instance.ids.faq2_delete_button.disabled = False
+                addeditdeletefaqpage2_instance.ids.faq2_delete_button.opacity = 1
+                addeditdeletefaqpage2_instance.ids.faq_partname.text = faqDetails[8]
+                addeditdeletefaqpage2_instance.ids.faq_url.text = faqDetails[9]
+                addeditdeletefaqpage2_instance.ids.faq_content.text = faqDetails[7]
+
+        def setHelpful(self):
+
+                viewfaq_instance = self.root.get_screen("ViewFAQ")
+
+                global faqDetails
+
+                if faqDetails[12] == 1:
+                        helpful = 0
+                else:
+                        helpful = 1
+                if CURRENT_USER_ROLE == "user":
+                        rateMessage = rateFAQ(CURRENT_USER_EMAIL, faqDetails[0], helpful)
+                        if rateMessage == "Rating is updated.":
+                                faqDetails = list(faqDetails)
+                                faqDetails[12] = helpful
+                                faqDetails = tuple(faqDetails)
+                                if helpful == 1:
+                                        viewfaq_instance.ids.helpful_button.text = "Not Helpful"
+                                else:
+                                        viewfaq_instance.ids.helpful_button.text = "Helpful"
+                        else:
+                                viewfaq_instance.ids.helpful_message.text = str(rateMessage)
 
         def clearFAQ(self):
 
@@ -868,12 +978,78 @@ class MainApp(MDApp):
                 addeditdeletefaqpage1_instance.ids.faq_category_subcategory_error.text = ""
                 addeditdeletefaqpage1_instance.ids.faq_keywords.text = ""
                 addeditdeletefaqpage1_instance.ids.faq_keywords_error.text = ""
+                addeditdeletefaqpage1_instance.ids.faq_delete_error.text = ""
 
                 addeditdeletefaqpage2_instance.ids.faq_partname.text = ""
                 addeditdeletefaqpage2_instance.ids.faq_partname_error.text = ""
                 addeditdeletefaqpage2_instance.ids.faq_url.text = ""
                 addeditdeletefaqpage2_instance.ids.faq_url_error.text = ""
+                addeditdeletefaqpage2_instance.ids.faq_content.text = ""
+                addeditdeletefaqpage2_instance.ids.faq_content_error.text = ""
                 addeditdeletefaqpage2_instance.ids.faq_upload_error.text = ""
+
+        def uploadFAQ(self):
+
+                if MainApp.checkFAQ(self, "") == 1:
+                        return
+
+                addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
+                addeditdeletefaqpage2_instance = self.root.get_screen("AddEditDeleteFAQPage2")
+
+                title = addeditdeletefaqpage1_instance.ids.faq_title.text.strip()
+
+                if addeditdeletefaqpage1_instance.ids.computer_togglebutton.state == "down":
+                        isForComputer = 1
+                else:
+                        isForComputer = 0
+
+                if addeditdeletefaqpage1_instance.ids.smartphone_togglebutton.state == "down":
+                        isForSmartphone = 1
+                else:
+                        isForSmartphone = 0
+
+                category = addeditdeletefaqpage1_instance.ids.faq_category_button.text.lower()
+                subcategory = addeditdeletefaqpage1_instance.ids.faq_subcategory.text.strip()
+                keyword = addeditdeletefaqpage1_instance.ids.faq_keywords.text.strip()
+                partName = addeditdeletefaqpage2_instance.ids.faq_partname.text.strip()
+                url = addeditdeletefaqpage2_instance.ids.faq_url_error.text.strip()
+                content = addeditdeletefaqpage2_instance.ids.faq_content.text.strip()
+
+                if CURRENT_USER_ROLE == "administrator":
+                        if addeditdeletefaqpage2_instance.ids.addeditdeletefaqpage2_title.text == "Add FAQ (Page 2)":
+                                uploadMessage = addFAQ(CURRENT_USER_EMAIL, isForComputer, isForSmartphone, category, title, keyword, subcategory, content, partName, url)
+                        else:
+                                uploadMessage = editFAQ(CURRENT_USER_EMAIL, faqDetails[0], isForComputer, isForSmartphone, category, title, keyword, subcategory, content, partName, url)
+                        addeditdeletefaqpage2_instance.ids.faq_upload_error.text = str(uploadMessage)
+                        if uploadMessage == "FAQ is edited.":
+                                MainApp.clearFAQList(self, "faqDetailsOnly")
+                                MainApp.loadFAQs(self)
+
+        def removeFAQ(self):
+
+                addeditdeletefaqpage1_instance = self.root.get_screen("AddEditDeleteFAQPage1")
+                addeditdeletefaqpage2_instance = self.root.get_screen("AddEditDeleteFAQPage2")
+
+                deleteMessage = deleteFAQ(CURRENT_USER_EMAIL, faqDetails[0])
+                if self.root.current == "AddEditDeleteFAQPage1":
+                        addeditdeletefaqpage1_instance.ids.faq_delete_error.text = str(deleteMessage)
+                else:
+                        addeditdeletefaqpage2_instance.ids.faq_upload_error.text = str(deleteMessage)
+                if deleteMessage == "FAQ is deleted.":
+                        for faq in faqList:
+                                if faq[0] == faqDetails[0]:
+                                        remove = faq
+                                        break
+                        faqList.remove(faq)
+                        MainApp.clearFAQ(self)
+                        MainApp.clearFAQList(self, "faqDetailsOnly")
+                        if len(faqList) == 0:
+                                faqlist_instance = self.root.get_screen("FAQList")
+                                faqlist_instance.ids.faqlistitem1.text = "There is no FAQ available."
+                        else:
+                                global faqcurrentLastNumber
+                                faqcurrentLastNumber = -1
+                                MainApp.loadFAQList(self, "next")
 
 class LoginWindow(Screen):
         pass
@@ -918,6 +1094,9 @@ class viewfaq(Screen):
         pass
 
 class FAQlist_sort_dropdown(DropDown):
+        pass
+
+class FAQlist_catdev_dropdown(DropDown):
         pass
 
 class WindowManager(ScreenManager):
