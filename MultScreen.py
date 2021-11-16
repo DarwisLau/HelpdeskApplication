@@ -640,11 +640,11 @@ class MainApp(MDApp):
                                 faqKeywordsSubcategory = "Keywords: " + faqDetails[5] + "\nSubcategory: " + faqDetails[6] + "\n\n"
                         faqContent = faqDetails[7]
                         if len(faqDetails[8]) != 0:
-                                faqPart = "\n\nPart name: " + formDetails[8] + "\nURL: " + formDetails[9]
+                                faqPart = "\n\nPart name: " + faqDetails[8] + "\nURL: " + faqDetails[9]
                         else:
                                 faqPart = ""
                         if CURRENT_USER_ROLE == "user":
-                                if faqDetails[10] == 1:
+                                if faqDetails[12] == 1:
                                         viewfaq_instance.ids.helpful_button.text = "Not Helpful"
                                 else:
                                         viewfaq_instance.ids.helpful_button.text = "Helpful"
@@ -732,11 +732,13 @@ class MainApp(MDApp):
                         return 1
                 return 0
 
-        def rearrangeFAQ(self):
+        def rearrangeFAQ(self, order):
 
                 global faqList, faqcurrentLastNumber
 
-                if FAQ_SORT_PREFERENCE == "ascending":
+                if order == "catdev":
+                        pass
+                elif FAQ_SORT_PREFERENCE == "ascending":
                         faqList.sort(key = lambda faq : faq[4])
                 elif FAQ_SORT_PREFERENCE == "descending":
                         faqList.sort(key = lambda faq : faq[4], reverse = True)
@@ -745,7 +747,9 @@ class MainApp(MDApp):
                 else:
                         faqList.sort(key = lambda faq : faq[6], reverse = True)
 
-                if FAQ_CATDEV == "computer":
+                if order == "pref":
+                        pass
+                elif FAQ_CATDEV == "computer":
                         faqList.sort(key = lambda faq : faq[1], reverse = True)
                 elif FAQ_CATDEV == "smartphone":
                         faqList.sort(key = lambda faq : faq[2], reverse = True)
@@ -771,14 +775,14 @@ class MainApp(MDApp):
                         faqlist_instance.ids.faqlistitem1.text = "There is no FAQ available."
                 else:
                         try:
-                                MainApp.rearrangeFAQ(self)
+                                MainApp.rearrangeFAQ(self, "")
                         except:
                                 FAQ_SORT_PREFERENCE = "ascending"
                                 try:
-                                        MainApp.rearrangeFAQ(self)
+                                        MainApp.rearrangeFAQ(self, "")
                                 except:
                                         FAQ_CATDEV = "all"
-                                        MainApp.rearrangeFAQ(self)
+                                        MainApp.rearrangeFAQ(self, "")
 
         def searchFAQs(self):
 
@@ -804,14 +808,14 @@ class MainApp(MDApp):
                         faqlist_instance.ids.faqlistitem1.text = "There is no FAQ which matches the words. Try other words and see?"
                 else:
                         try:
-                                MainApp.rearrangeFAQ(self)
+                                MainApp.rearrangeFAQ(self, "")
                         except:
                                 FAQ_SORT_PREFERENCE = "ascending"
                                 try:
-                                        MainApp.rearrangeFAQ(self)
+                                        MainApp.rearrangeFAQ(self, "")
                                 except:
                                         FAQ_CATDEV = "all"
-                                        MainApp.rearrangeFAQ(self)
+                                        MainApp.rearrangeFAQ(self, "")
 
         def setFAQSortPreference(self, preference):
 
@@ -1012,7 +1016,7 @@ class MainApp(MDApp):
                 subcategory = addeditdeletefaqpage1_instance.ids.faq_subcategory.text.strip()
                 keyword = addeditdeletefaqpage1_instance.ids.faq_keywords.text.strip()
                 partName = addeditdeletefaqpage2_instance.ids.faq_partname.text.strip()
-                url = addeditdeletefaqpage2_instance.ids.faq_url_error.text.strip()
+                url = addeditdeletefaqpage2_instance.ids.faq_url.text.strip()
                 content = addeditdeletefaqpage2_instance.ids.faq_content.text.strip()
 
                 if CURRENT_USER_ROLE == "administrator":
@@ -1041,7 +1045,6 @@ class MainApp(MDApp):
                                         remove = faq
                                         break
                         faqList.remove(faq)
-                        MainApp.clearFAQ(self)
                         MainApp.clearFAQList(self, "faqDetailsOnly")
                         if len(faqList) == 0:
                                 faqlist_instance = self.root.get_screen("FAQList")
