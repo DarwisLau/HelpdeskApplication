@@ -564,7 +564,7 @@ class MainApp(MDApp):
                        addeditdeletefaqpage2_instance.ids.faq_partname_error.text = "Please fill in part name."
                        hasError = 1
                 elif len(addeditdeletefaqpage2_instance.ids.faq_partname.text.strip()) > 0 and len(addeditdeletefaqpage2_instance.ids.faq_partname.text.strip()) > 0:
-                        if len(addeditdeletefaqpage2_instance.ids.faq_partname.strip()) > 200:
+                        if len(addeditdeletefaqpage2_instance.ids.faq_partname.text.strip()) > 200:
                                 addeditdeletefaqpage2_instance.ids.faq_partname_error.text = "Part name cannot exceed 200 characters."
                                 hasError = 1
                         else:
