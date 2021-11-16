@@ -1,4 +1,4 @@
-rom kivy.lang import Builder
+from kivy.lang import Builder
 from kivymd.app import MDApp
 from validate_email import validate_email
 from kivy.uix.screenmanager import ScreenManager, Screen
