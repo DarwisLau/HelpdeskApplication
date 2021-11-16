@@ -13,7 +13,11 @@ WindowManager:
 	viewfaq:
 
 <LoginWindow>:
-	name: "login"
+	Image:
+		source: "LoginPageGraphic.png"
+		size_hint: (.5, .5)
+		texture: self.texture
+		pos_hint: {"x":380/800,"y":150/500}
 
 	MDLabel:
 		text: "Helpdesk Application"
@@ -27,7 +31,7 @@ WindowManager:
 		text: "User Email"
 		font_size: 15
 		size_hint_y: None
-		pos_hint:{"x":238/800,"y":380/500}
+		pos_hint:{"x":88/800,"y":330/500}
 		height: self.texture_size[1]
 		padding_y: 15
 
@@ -37,7 +41,7 @@ WindowManager:
 		icon_right: "account"
 		mode: "rectangle"
 		size_hint_x: None
-		pos_hint: {"x":250/800,"y":350/500}
+		pos_hint: {"x":100/800,"y":300/500}
 		width: 300
 		font_size: 15
 
@@ -46,7 +50,7 @@ WindowManager:
 		text: " "
 		font_size: 15
 		size_hint_y: None
-		pos_hint:{"x":238/800,"y":325/500}
+		pos_hint:{"x":88/800,"y":275/500}
 		height: self.texture_size[1]
 		padding_y: 15
 		canvas.before:
@@ -58,38 +62,48 @@ WindowManager:
 		text: "Password"
 		font_size: 15
 		size_hint_y: None
-		pos_hint:{"x":238/800,"y":310/500}
+		pos_hint:{"x":88/800,"y":260/500}
 		height: self.texture_size[1]
 		padding_y: 15
 
 	MDTextField:
-		id: login_password
+		id: password
 		mode:"rectangle"
 		hint_text: "password"
 		icon_right: "eye-off"
 		size_hint_x: None
 		width: 300
 		font_size: 15
-		pos_hint: {"x":250/800,"y":280/500}
+		pos_hint: {"x":100/800,"y":230/500}
 		password: True
 
 	MDLabel:
-		id: login_password_error
+		id: password_error
 		text: " "
 		font_size: 15
 		size_hint_y: None
-		pos_hint:{"x":238/800,"y":255/500}
+		pos_hint:{"x":88/800,"y":205/500}
 		height: self.texture_size[1]
 		padding_y: 15
 		canvas.before:
 			Color:
 				rgba: (0,0,0,1)
 		color: ("#FF0000")
-
+           
+	MDTextButton:
+		text: "Don't have an account? Register here."
+		font_size: 14
+		pos_hint: {"x":198/800, "y":195/500}
+		on_press: 
+			app.root.current = "Registration"
+			root.manager.transition.direction = "left"
+			root.ids.login_email.text = ""
+			root.ids.password.text = ""
+			
 	MDRectangleFlatButton:
 		text: "Login"
 		font_size: 16
-		pos_hint: {"x":238/800, "y": 225/500}
+		pos_hint: {"x":88/800, "y": 175/500}
 		on_press: 
 			app.verify_login_email(); app.verify_login_password(); app.login()
 			root.ids.login_email.text = "" if login_button_message.text == "Welcome..." else login_email.text
