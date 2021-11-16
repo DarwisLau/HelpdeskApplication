@@ -1,4 +1,3 @@
-from ValidateData import validate_loginCredentials, validate_FAQData
 import sqlite3
 import random
 
@@ -683,18 +682,6 @@ def viewFAQ (dataClientRole, dataClientEmail, dataFAQNumber):
                 return "You have logged out. Please log in again."
 
             dbCursor.execute('''
-            INSERT INTO UserViewingOfFAQ(
-             userID, FAQDateTimeViewed, FAQNumber)
-              VALUES(
-               (SELECT userID FROM User
-                WHERE userEmail = ?),
-               (SELECT DATETIME("now")),
-               ?);
-            ''',
-            (dataClientEmail, dataFAQNumber,))
-            dbConnection.commit()
-
-            dbCursor.execute('''
             SELECT
              f.FAQNumber,
              f.FAQIsForComputer,
@@ -732,8 +719,24 @@ def viewFAQ (dataClientRole, dataClientEmail, dataFAQNumber):
             (dataFAQNumber, dataClientEmail,))
             FAQHelpful = dbCursor.fetchone()
             FAQDetails = list(FAQDetails)
-            FAQDetails.append(FAQHelpful[0])
+            if FAQHelpful is None:
+                FAQDetails.append(0)
+            else:
+                FAQDetails.append(FAQHelpful[0])
             FAQDetails = tuple(FAQDetails)
+
+            dbCursor.execute('''
+            INSERT INTO UserViewingOfFAQ(
+             userID, FAQDateTimeViewed, FAQNumber)
+              VALUES(
+               (SELECT userID FROM User
+                WHERE userEmail = ?),
+               (SELECT DATETIME("now")),
+               ?);
+            ''',
+            (dataClientEmail, dataFAQNumber,))
+            dbConnection.commit()
+
             return FAQDetails
 
         else:
@@ -841,12 +844,9 @@ def rateFAQ (dataUserEmail, dataFAQNumber, dataFAQIsHelpful):
            userID =
             (SELECT userID FROM User
              WHERE userEmail = ?) AND
-           FAQNumber = ? AND
-           FAQDateTimeViewed =
-            (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
-              WHERE userID = (SELECT userID FROM User WHERE userEmail = ?));
+           FAQNumber = ?;
         ''',
-        (dataFAQIsHelpful, dataUserEmail, dataFAQNumber, dataUserEmail,))
+        (dataFAQIsHelpful, dataUserEmail, dataFAQNumber,))
 
         dbCursor.execute('''
         SELECT FAQIsHelpful
@@ -855,12 +855,9 @@ def rateFAQ (dataUserEmail, dataFAQNumber, dataFAQIsHelpful):
            userID =
             (SELECT userID FROM User
              WHERE userEmail = ?) AND
-           FAQNumber = ? AND
-           FAQDateTimeViewed =
-            (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
-              WHERE userID = (SELECT userID FROM User WHERE userEmail = ?));
+           FAQNumber = ?;
         ''',
-        (dataUserEmail, dataFAQNumber, dataUserEmail,))
+        (dataUserEmail, dataFAQNumber,))
         ratingChanged = 1
         for rating in dbCursor:
             if rating[0] != dataFAQIsHelpful:
