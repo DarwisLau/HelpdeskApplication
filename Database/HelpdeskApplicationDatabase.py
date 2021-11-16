@@ -24,7 +24,7 @@ def createDatabase():
 
         dbCursor.execute('''
         CREATE TABLE Form(
-         formNumber INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+         formNumber INTEGER NOT NULL PRIMARY KEY,
          userID INTEGER NOT NULL,
          formEmail VARCHAR(150),
          formDescription TEXT NOT NULL,
@@ -37,7 +37,7 @@ def createDatabase():
 
         dbCursor.execute('''
         CREATE TABLE FrequentlyAskedQuestion(
-         FAQNumber INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+         FAQNumber INTEGER NOT NULL PRIMARY KEY,
          FAQIsForComputer BOOLEAN NOT NULL,
          FAQIsForSmartphone BOOLEAN NOT NULL,
          FAQCategory VARCHAR(15) NOT NULL CHECK(FAQCategory IN ('hardware', 'security', 'architecture', 'connections')),
@@ -79,7 +79,7 @@ def createDatabase():
         CREATE TABLE AdministratorViewingOfForm(
          administratorID INTEGER NOT NULL,
          formDateTimeViewed TIMESTRING NOT NULL,
-         formSetAsSolved BOOLEAN,
+         formSetAsSolved BOOLEAN NOT NULL DEFAULT 0,
          formNumber INTEGER NOT NULL,
          FOREIGN KEY (administratorID)
           REFERENCES Administrator(administratorID),
@@ -137,18 +137,20 @@ def dropDatabase():
         dbConnection.close()
 
 
-def checkUser():
+def check():
     try:
         dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
         dbCursor.execute('''
-        SELECT * FROM User;
+        SELECT * FROM Form;
         ''')
         for info in dbCursor:
-            return info
+            return(info[5])
 
     except sqlite3.Error as errorMessage:
         return errorMessage
     finally:
         dbConnection.close()
+
+check()

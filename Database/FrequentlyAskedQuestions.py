@@ -3,21 +3,12 @@ import sqlite3
 import random
 
 
-def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForComputer, dataFAQIsForSmartphone, dataFAQCategory, dataFAQTitle, dataFAQKeyword, dataFAQSubcategory, dataFAQContent, dataFAQLinkPartName, dataFAQLinkURL):
+def addFAQ (dataAdministratorEmail, dataFAQIsForComputer, dataFAQIsForSmartphone, dataFAQCategory, dataFAQTitle, dataFAQKeyword, dataFAQSubcategory, dataFAQContent, dataFAQLinkPartName, dataFAQLinkURL):
 
-    dataAdministratorEmail = dataAdministratorEmail.strip()
-    errorMessage = validate(dataAdministratorEmail, dataAdministratorPassword)
-    if errorMEssage != None:
-        return errorMessage
-
-    dataCFAQCategory = dataFAQCategory.lower()
-    errorMessage = validate_FAQData(dataFAQIsForComputer, dataFAQIsForSmartphone, dataFAQCategory, dataFAQTitle, dataFAQKeyword, dataFAQSubcategory, dataFAQContent, dataFAQLinkPartName, dataFAQLinkURL)
-    if errorMessage != None:
-        return erroMessage
 
     try:
 
-        dbConnection.connect("HelpdeskApplication.sqlite")
+        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
         #Check whether the person is an administrator or not
@@ -30,26 +21,7 @@ def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForCompu
         existAdministrator = dbCursor.fetchone()
         if existAdministrator[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT administratorPassword FROM Administrator
-          WHERE administratorEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataAdministratorEmail, dataAdministratorPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE Administrator
-             SET administratorIsLoggedIn = 0
-            WHERE administratorEmail = ?;
-            ''',
-            (dataAdministratorEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+        
         dbCursor.execute('''
         SELECT administratorIsLoggedIn FROM Administrator
          WHERE administratorEmail = ?;
@@ -58,15 +30,17 @@ def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForCompu
         administratorLoggedIn = dbCursor.fetchone()
         if administratorLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
+        allNumber = []
         dbCursor.execute('''
-        SELECT FAQNumber FROM FrequentlyAskedQuestions;
+        SELECT FAQNumber FROM FrequentlyAskedQuestion;
         ''',)
-        listOfFAQNumber = []
         for number in dbCursor:
-            listOfFAQNumber.append(number)
-        dataFAQNumber = random.randint(1, 1000)
-        while dataFAQNumber in listOfFAQNumber:
-            dataFAQNumber = random.randint(1, 1000)
+            allNumber.append(number)
+        dataFAQNumber = random.randint(1, 150)
+        while dataFAQNumber in allNumber:
+            dataFAQNumber = random.randint(1, 150)
+
         dbCursor.execute('''
         INSERT INTO FrequentlyAskedQuestion(
          FAQNumber,
@@ -88,6 +62,7 @@ def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForCompu
          ?,
          ?,
          ?,
+         ?,
          ?);
         ''',
         (dataFAQNumber,
@@ -100,7 +75,18 @@ def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForCompu
          dataFAQContent,
          dataFAQLinkPartName,
          dataFAQLinkURL,))
-        dbConnection.commit()
+
+        dbCursor.execute('''
+        INSERT INTO AdministratorEditingOfFAQ(
+         administratorID, FAQDateTimeEdited, FAQNumber)
+        VALUES(
+         (SELECT administratorID FROM Administrator
+          WHERE administratorEmail = ?),
+         (SELECT datetime("now")),
+         ?);
+         ''',
+        (dataAdministratorEmail, dataFAQNumber,))
+
         dbCursor.execute('''
         SELECT IIF(
          (SELECT FAQIsForComputer FROM FrequentlyAskedQuestion
@@ -134,33 +120,24 @@ def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForCompu
          dataFAQNumber, dataFAQLinkPartName,
          dataFAQNumber, dataFAQLinkURL,))
         created = dbCursor.fetchone()
-        if isAdded[0] == 0:
-            return "Something wrong when adding the FAQ to FrequentlyAskedQuestion."
-        dbCursor.execute('''
-        INSERT INTO AdministratorEditingOfFAQ(
-         administratorID, FAQDateTimeEdited, FAQNumber)
-        VALUES(
-         SELECT administratorID FROM Administrator
-          WHERE administratorEmail = ?,
-         SELECT datetime("now"),
-         ?);
-         ''',
-        (dataAdministratorEmail, dataFAQNumber,))
-        dbConnection.commit()
+        if created[0] == 0:
+            return "Something wrong when adding the FAQ to the database."
+
         dbCursor.execute('''
         SELECT IIF(
-         (SELECT administratorID FROM AdministratorViewingOfFAQ
+         (SELECT administratorID FROM AdministratorEditingOfFAQ
           WHERE FAQNumber = ?) =
          (SELECT administratorID FROM Administrator
           WHERE administratorEmail = ?),
-         "The FAQ is added.,
-         "Something wrong when recording in AdministratorEditingOfFAQ."
+         "FAQ is added.",
+         "Something wrong when recording the administrator's creating of FAQ."
          ) message;
          ''',
-        (dataAdministratorEmail, dataFAQNumber,
-         dataAdministratorEmail, dataFAQNumber,))
+        (dataFAQNumber, dataAdministratorEmail,))
         returnMessage = dbCursor.fetchone()
-        return returnMessage
+        if returnMessage[0] == "FAQ is added.":
+            dbConnection.commit()
+        return returnMessage[0]
         
     except sqlite3.Error as errorMessage:
         return errorMessage
@@ -170,21 +147,12 @@ def addFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQIsForCompu
 
 
 
-def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, dataFAQIsForComputer, dataFAQIsForSmartphone, dataFAQCategory, dataFAQTitle, dataFAQKeyword, dataFAQSubcategory, dataFAQContent, dataFAQLinkPartName, dataFAQLinkURL):
+def editFAQ (dataAdministratorEmail, dataFAQNumber, dataFAQIsForComputer, dataFAQIsForSmartphone, dataFAQCategory, dataFAQTitle, dataFAQKeyword, dataFAQSubcategory, dataFAQContent, dataFAQLinkPartName, dataFAQLinkURL):
 
-    dataAdministratorEmail = dataAdministratorEmail.strip()
-    errorMessage = validate(dataAdministratorEmail, dataAdministratorPassword)
-    if errorMEssage != None:
-        return errorMessage
-
-    dataCFAQCategory = dataFAQCategory.lower()
-    errorMessage = validate_FAQData(dataFAQIsForComputer, dataFAQIsForSmartphone, dataFAQCategory, dataFAQTitle, dataFAQKeyword, dataFAQSubcategory, dataFAQContent, dataFAQLinkPartName, dataFAQLinkURL)
-    if errorMessage != None:
-        return erroMessage
 
     try:
 
-        dbConnection.connect("HelpdeskApplication.sqlite")
+        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
         #Check whether the person is an administrator or not
@@ -197,26 +165,7 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
         existAdministrator = dbCursor.fetchone()
         if existAdministrator[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT administratorPassword FROM Administrator
-          WHERE administratorEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataAdministratorEmail, dataAdministratorPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE Administrator
-             SET administratorIsLoggedIn = 0
-            WHERE administratorEmail = ?;
-            ''',
-            (dataAdministratorEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+        
         dbCursor.execute('''
         SELECT administratorIsLoggedIn FROM Administrator
          WHERE administratorEmail = ?;
@@ -225,6 +174,7 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
         administratorLoggedIn = dbCursor.fetchone()
         if administratorLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
         dbCursor.execute('''
         SELECT EXISTS(
          SELECT FAQNumber FROM FrequentlyAskedQuestion
@@ -234,67 +184,32 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
         existFAQ = dbCursor.fetchone()
         if existFAQ == 0:
             return "The FAQ does not exists."
+
         dbCursor.execute('''
         INSERT INTO AdministratorEditingOfFAQ(
          administratorID, FAQDateTimeEdited, FAQNumber)
         VALUES(
-         SELECT administratorID FROM Administrator
-          WHERE administratorEmail = ?,
-         SELECT datetime("now"),
+         (SELECT administratorID FROM Administrator
+          WHERE administratorEmail = ?),
+         (SELECT datetime("now")),
          ?);
          ''',
         (dataAdministratorEmail, dataFAQNumber,))
-        dbConnection.commit()
+
         dbCursor.execute('''
-        SELECT IIF(
-         SELECT EXISTS(
-          SELECT formNumber FROM AdministratorViewingOfFAQ
-           WHERE
-            administratorID = (
-             SELECT administratorID FROM Administrator
-              WHERE administratorEmail = ?) AND
-            formNumber = ?) AND
-         ((SELECT datetime("now") -
-          (SELECT MAX(FAQdateTimeEdited) FROM AdministratorViewingOfFAQ
-           WHERE
-            administratorID =
-             (SELECT administratorID FROM Administrator
-              WHERE administratorEmail = ?) AND
-            FAQNumber = ?))*(24*60)) < 1,
-         1,
-         0
-         ) isRecordedInEditingWithinOneMinutesAgo;
-         ''',
-        (dataAdministratorEmail, dataFAQNumber,
-         dataAdministratorEmail, dataFAQnumber,))
-        isRecordedInEditingWithinOneMinutesAgo = dbCursor.fetchone()
-        if isRecordedInEditingWithinOneMinutesAgo[0] == 0:
-            return "Something wrong when recording in AdministratorEditingOfFAQ."
-        dbCursor.execute('''
-        INSERT INTO FrequentlyAskedQuestion(
-         FAQNumber,
-         FAQIsForComputer,
-         FAQIsForSmartphone,
-         FAQCategory,
-         FAQTitle,
-         FAQKeyword,
-         FAQSubcategory,
-         FAQContent,
-         FAQLinkPartName,
-         FAQLinkURL)
-        VALUES(
-         ?,
-         ?,
-         ?,
-         ?,
-         ?,
-         ?,
-         ?,
-         ?,
-         ?);
+        UPDATE FrequentlyAskedQuestion
+         SET FAQIsForComputer = ?,
+          FAQIsForSmartphone = ?,
+          FAQCategory = ?,
+          FAQTitle = ?,
+          FAQKeyword = ?,
+          FAQSubcategory = ?,
+          FAQContent = ?,
+          FAQLinkPartName = ?,
+          FAQLinkURL = ?
+        WHERE FAQNumber = ?;
         ''',
-        (dataFAQNumber,
-         dataFAQIsForComputer,
+        (dataFAQIsForComputer,
          dataFAQIsForSmartphone,
          dataFAQCategory,
          dataFAQTitle,
@@ -302,8 +217,21 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
          dataFAQSubcategory,
          dataFAQContent,
          dataFAQLinkPartName,
-         dataFAQLinkURL,))
-        dbConnection.commit()
+         dataFAQLinkURL,
+         dataFAQNumber,))
+
+        dbCursor.execute('''
+        SELECT a.administratorEmail, MAX(e.FAQDateTimeEdited)
+         FROM AdministratorEditingOfFAQ e, Administrator a
+          WHERE
+           e.FAQNumber = ? AND
+           e.administratorID = a.administratorID;
+        ''',
+        (dataFAQNumber,))
+        isRecorded = dbCursor.fetchone()
+        if isRecorded[0] != dataAdministratorEmail:
+            return "Something wrong when recording the administrator who edited the FAQ."
+
         dbCursor.execute('''
         SELECT IIF(
          (SELECT FAQIsForComputer FROM FrequentlyAskedQuestion
@@ -324,8 +252,8 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
           WHERE FAQNumber = ?) = ? AND
          (SELECT FAQLinkURL FROM FrequentlyAskedQuestion
           WHERE FAQNumber = ?) = ?,
-         "The FAQ is edited."
-         "Something wrong when editing the FAQ in FrequentlyAskedQuestion."
+         "FAQ is edited.",
+         "Something wrong when saving the FAQ to the database."
          ) message;
          ''',
         (dataFAQNumber, dataFAQIsForComputer,
@@ -338,6 +266,8 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
          dataFAQNumber, dataFAQLinkPartName,
          dataFAQNumber, dataFAQLinkURL,))
         returnMessage = dbCursor.fetchone()
+        if returnMessage[0] == "FAQ is edited.":
+            dbConnection.commit()
         return returnMessage[0]
 
     except sqlite3.Error as errorMessage:
@@ -347,17 +277,11 @@ def editFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber, d
 
 
 
-def deleteFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber):
-
-    dataAdministratorEmail = dataAdministratorEmail.strip()
-    errorMessage = validate(dataAdministratorEmail, dataAdministratorPassword)
-    if errorMEssage != None:
-        return errorMessage
-
+def deleteFAQ (dataAdministratorEmail, dataFAQNumber):
 
     try:
 
-        dbConnection.connect("HelpdeskApplication.sqlite")
+        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
         #Check whether the person is an administrator or not
@@ -370,26 +294,7 @@ def deleteFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber)
         existAdministrator = dbCursor.fetchone()
         if existAdministrator[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT administratorPassword FROM Administrator
-          WHERE administratorEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataAdministratorEmail, dataAdministratorPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE Administrator
-             SET administratorIsLoggedIn = 0
-            WHERE administratorEmail = ?;
-            ''',
-            (dataAdministratorEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
         dbCursor.execute('''
         SELECT administratorIsLoggedIn FROM Administrator
          WHERE administratorEmail = ?;
@@ -398,6 +303,7 @@ def deleteFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber)
         administratorLoggedIn = dbCursor.fetchone()
         if administratorLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
         dbCursor.execute('''
         SELECT EXISTS(
          SELECT FAQNumber FROM FrequentlyAskedQuestion
@@ -407,12 +313,19 @@ def deleteFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber)
         existFAQ = dbCursor.fetchone()
         if existFAQ == 0:
             return "The FAQ does not exists."
+
         dbCursor.execute('''
         DELETE FROM AdministratorEditingOfFAQ
          WHERE FAQNumber = ?;
         ''',
         (dataFAQNumber,))
-        dbConnection.commit()
+
+        dbCursor.execute('''
+        DELETE FROM FrequentlyAskedQuestion
+         WHERE FAQNumber = ?;
+        ''',
+        (dataFAQNumber,))
+
         dbCursor.execute('''
         SELECT EXISTS(
          SELECT FAQNumber FROM AdministratorEditingOfFAQ
@@ -421,25 +334,22 @@ def deleteFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber)
         (dataFAQNumber,))
         existFAQ = dbCursor.fetchone()
         if existFAQ == 1:
-            return "Something wrong when deleting the record of the FAQ from AdministratorEditingOfFAQ."
-        dbCursor.execute('''
-        DELETE FROM FrequentlyAskedQuestion
-         WHERE FAQNumber = ?;
-        ''',
-        (dataFAQNumber,))
-        dbConnection.commit()
+            return "Something wrong when deleting the record of administrators who edited the FAQ."
+        
         dbCursor.execute('''
         SELECT IIF(
-         SELECT EXISTS(
+         (SELECT EXISTS(
           SELECT FAQNumber FROM FrequentlyAskedQuestion
-           WHERE FAQNumber = ?),
-         "Something wrong when deleting the FAQ from FrequentlyAskedQuestion.",
-         "The FAQ is deleted."
+           WHERE FAQNumber = ?)) = 1,
+         "Something wrong when deleting the FAQ from the database.",
+         "FAQ is deleted."
          ) message;
          ''',
         (dataFAQNumber,))
         returnMessage = dbCursor.fetchone()
-        return returnMessage
+        if returnMessage[0] == "FAQ is deleted.":
+            dbConnection.commit()
+        return returnMessage[0]
 
     except sqlite3.Error as errorMessage:
         return errorMessage
@@ -449,47 +359,26 @@ def deleteFAQ (dataAdministratorEmail, dataAdministratorPassword, dataFAQNumber)
 
 
 
-def getAllFAQs (dataClientEmail, dataClientPassword):
+def getAllFAQs (dataClientRole, dataClientEmail):
 
-    dataClientEmail = dataClientEmail.strip()
-    errorMessage = validate_loginCredentials(dataClientEmail, dataClientPassword)
-    if errorMessage != None:
-        return errorMessage
 
     try:
 
         dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
-        #Check whether the person is a user or not
-        dbCursor.execute('''
-        SELECT EXISTS(
-         SELECT userEmail FROM User
-          WHERE userEmail = ?);
-        ''',
-        (dataClientEmail,))
-        existUser = dbCursor.fetchone()
-        if existUser[0] == 1:
-            #Check password
+        if dataClientRole == "user":
+            #Check whether the person is a user or not
             dbCursor.execute('''
-            SELECT IIF ((
-             SELECT userPassword FROM User
-              WHERE userEmail = ?) = ?,
-             1,
-             0
-            ) isCorrect;
+            SELECT EXISTS(
+             SELECT userEmail FROM User
+              WHERE userEmail = ?);
             ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE User
-                 SET userIsLoggedIn = 0
-                WHERE userEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+            (dataClientEmail,))
+            existUser = dbCursor.fetchone()
+            if existUser[0] == 0:
+                return "Something wrong about the login credentials (email address). Please log in again."
+            
             dbCursor.execute('''
             SELECT userIsLoggedIn FROM User
              WHERE userEmail = ?;
@@ -498,6 +387,7 @@ def getAllFAQs (dataClientEmail, dataClientPassword):
             userLoggedIn = dbCursor.fetchone()
             if userLoggedIn[0] == 0:
                 return "You have logged out. Please log in again."
+
         else:
             #Check whether the person is an administrator or not
             dbCursor.execute('''
@@ -509,26 +399,7 @@ def getAllFAQs (dataClientEmail, dataClientPassword):
             existAdministrator = dbCursor.fetchone()
             if existAdministrator[0] == 0:
                 return "Something wrong about the login credentials (email address). Please log in again."
-            #Check password
-            dbCursor.execute('''
-            SELECT IIF ((
-             SELECT administratorPassword FROM Administrator
-              WHERE administratorEmail = ?) = ?,
-            1,
-            0
-            ) isCorrect;
-            ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE Administrator
-                 SET administratorIsLoggedIn = 0
-                WHERE administratorEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
             dbCursor.execute('''
             SELECT administratorIsLoggedIn FROM Administrator
              WHERE administratorEmail = ?;
@@ -537,21 +408,57 @@ def getAllFAQs (dataClientEmail, dataClientPassword):
             administratorLoggedIn = dbCursor.fetchone()
             if administratorLoggedIn[0] == 0:
                 return "You have logged out. Please log in again."
+
+        FAQNumberList = []
+
         dbCursor.execute('''
-        SELECT
-         FAQNumber,
-         FAQIsForComputer,
-         FAQIsForSmartphone,
-         FAQCategory,
-         FAQTitle,
-         substr(FAQContent, 1, 100)
-          FROM FrequentlyAskedQuestion;
-        ''',
-        (dataFAQNumber,))
-        listOfFAQs = []
-        for FAQ in dbCursor:
-            listOfFAQs.append(FAQ)
-        return listOfFAQs
+        SELECT FAQNumber FROM FrequentlyAskedQuestion;
+        ''')
+        for number in dbCursor:
+            FAQNumberList.append(number[0])
+
+        FAQList = []
+    
+        for dataFAQNumber in FAQNumberList:
+            dbCursor.execute('''
+            SELECT
+             DISTINCT f.FAQNumber,
+             f.FAQIsForComputer,
+             f.FAQIsForSmartphone,
+             f.FAQCategory,
+             f.FAQTitle,
+             datetime(MAX(e.FAQDateTimeEdited), "localtime")
+             FROM
+              FrequentlyAskedQuestion f,
+              AdministratorEditingOfFAQ e
+               WHERE
+                f.FAQNumber = ? AND
+                f.FAQNumber = e.FAQNumber;
+            ''',
+            (dataFAQNumber,))
+            FAQ = dbCursor.fetchone()
+            FAQList.append(FAQ)
+
+        for num in range(0, len(FAQList), 1):
+            faq = list(FAQList[num])
+            dbCursor.execute('''
+            SELECT
+             COUNT(DISTINCT userID)
+              FROM UserViewingOfFAQ
+               WHERE
+                FAQIsHelpful = 1 AND
+                 FAQNumber = ?;
+            ''',
+            (faq[0],))
+            helpnum = dbCursor.fetchone()
+            if helpnum is not None:
+                faq.append(helpnum[0])
+            else:
+                faq.append(0)
+            faq = tuple(faq)
+            FAQList[num] = faq
+
+        return FAQList
 
     except sqlite3.Error as errorMessage:
         return errorMessage
@@ -562,47 +469,26 @@ def getAllFAQs (dataClientEmail, dataClientPassword):
 
 
 
-def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
+def searchFAQByWord (dataClientRole, dataClientEmail, dataSearchWord):
 
-    dataClientEmail = dataClientEmail.strip()
-    errorMessage = validate_loginCredentials(dataClientEmail, dataClientPassword)
-    if errorMessage != None:
-        return errorMessage
 
     try:
 
         dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
-        #Check whether the person is a user or not
-        dbCursor.execute('''
-        SELECT EXISTS(
-         SELECT userEmail FROM User
-          WHERE userEmail = ?);
-        ''',
-        (dataClientEmail,))
-        existUser = dbCursor.fetchone()
-        if existUser[0] == 1:
-            #Check password
+        if dataClientRole == "user":
+            #Check whether the person is a user or not
             dbCursor.execute('''
-            SELECT IIF ((
-             SELECT userPassword FROM User
-              WHERE userEmail = ?) = ?,
-             1,
-             0
-            ) isCorrect;
+            SELECT EXISTS(
+             SELECT userEmail FROM User
+              WHERE userEmail = ?);
             ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE User
-                 SET userIsLoggedIn = 0
-                WHERE userEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+            (dataClientEmail,))
+            existUser = dbCursor.fetchone()
+            if existUser[0] == 0:
+                return "Something wrong about the login credentials (email address). Please log in again."
+
             dbCursor.execute('''
             SELECT userIsLoggedIn FROM User
              WHERE userEmail = ?;
@@ -611,6 +497,7 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
             userLoggedIn = dbCursor.fetchone()
             if userLoggedIn[0] == 0:
                 return "You have logged out. Please log in again."
+
         else:
             #Check whether the person is an administrator or not
             dbCursor.execute('''
@@ -622,26 +509,7 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
             existAdministrator = dbCursor.fetchone()
             if existAdministrator[0] == 0:
                 return "Something wrong about the login credentials (email address). Please log in again."
-            #Check password
-            dbCursor.execute('''
-            SELECT IIF ((
-             SELECT administratorPassword FROM Administrator
-              WHERE administratorEmail = ?) = ?,
-            1,
-            0
-            ) isCorrect;
-            ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE Administrator
-                 SET administratorIsLoggedIn = 0
-                WHERE administratorEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
             dbCursor.execute('''
             SELECT administratorIsLoggedIn FROM Administrator
              WHERE administratorEmail = ?;
@@ -650,6 +518,7 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
             administratorLoggedIn = dbCursor.fetchone()
             if administratorLoggedIn[0] == 0:
                 return "You have logged out. Please log in again."
+
     except sqlite3.Error as errorMessage:
         return errorMessage
     finally:
@@ -657,35 +526,20 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
         
     FAQNumberList = []
     groupList = []
-    if (dataSearchWord.lower()).find("computer") != 0:
+    if (dataSearchWord.lower()).find("computer") != -1:
         groupList.append("computer")
-    elif (dataSearchWord.lower()).find("smartphone") != 0:
+    elif (dataSearchWord.lower()).find("smartphone") != -1:
         groupList.append("smartphone")
-    elif (dataSearchWord.lower()).find("hardware") != 0:
+    elif (dataSearchWord.lower()).find("hardware") != -1:
         groupList.append("hardware")
-    elif (dataSearchWord.lower()).find("security") != 0:
+    elif (dataSearchWord.lower()).find("security") != -1:
         groupList.append("security")
-    elif (dataSearchWord.lower()).find("architecture") != 0:
+    elif (dataSearchWord.lower()).find("architecture") != -1:
         groupList.append("architecture")
-    elif (dataSearchWord.lower()).find("connections") != 0:
+    elif (dataSearchWord.lower()).find("connections") != -1:
         groupList.append("connections")
 
-    wordList = (dataSearchWord.lower()).split(" ")
-    for punctuation in [",", ".", "?", "(", ")", "/", ":", ";"]:
-        punctuationWordList = []
-        removeWordList = []
-        for word in wordList:
-            word = word.strip()
-            if word.find(","):
-                newWordList = word.split(",")
-                for newWord in newWordList:
-                    newWord = newWord.strip()
-                    punctuationWordList.append(newWord)
-                removeWordList.append(word)
-        for punctuationWord in punctuationWordList:
-            wordList.append(punctuationWord)
-        for removeWord in removeWordList:
-            wordList.remove(removeWord)       
+    wordList = (dataSearchWord.lower()).split(" ")       
 
     try:
         dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
@@ -694,32 +548,35 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
             if group == "computer":
                 dbCursor.execute('''
                 SELECT FAQNumber FROM FrequentlyAskedQuestion
-                 WHERE FAQIsForCcomputer = 1;
+                 WHERE FAQIsForComputer = 1;
                 ''')
                 for FAQNumber in dbCursor:
-                    FAQNumberList.append(FAQNumber)
+                    if FAQNumber[0] not in FAQNumberList:
+                        FAQNumberList.append(FAQNumber[0])
             elif group == "smartphone":
                 dbCursor.execute('''
                 SELECT FAQNumber FROM FrequentlyAskedQuestion
                  WHERE FAQIsForSmartphone = 1;
                 ''')
                 for FAQNumber in dbCursor:
-                    FAQNumberList.append(FAQNumber)
+                    if FAQNumber[0] not in FAQNumberList:
+                        FAQNumberList.append(FAQNumber[0])
             else:
                 dbCursor.execute('''
                 SELECT FAQNumber FROM FrequentlyAskedQuestion
                  WHERE FAQCategory = ?;
                 ''',
                 (group,))
-                for FAQNumber in FAQNumberList:
-                    FAQNumberList.append(FAQNumber)
+                for FAQNumber in dbCursor:
+                    if FAQNumber[0] not in FAQNumberList:
+                        FAQNumberList.append(FAQNumber[0])
 
         dbCursor.execute('''
         SELECT LOWER(FAQTitle), FAQNumber FROM FrequentlyAskedQuestion;
         ''')
         for titleAndNumber in dbCursor:
             for word in wordList:
-                if titleAndNumber[0].find(word) != 0:
+                if titleAndNumber[0].find(word) != -1 and titleAndNumber[1] not in FAQNumberList:
                     FAQNumberList.append(titleAndNumber[1])
 
         dbCursor.execute('''
@@ -727,7 +584,7 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
         ''')
         for keywordAndNumber in dbCursor:
             for word in wordList:
-                if keywordAndNumber[0].find(word) != 0:
+                if keywordAndNumber[0].find(word) != -1 and keywordAndNumber[1] not in FAQNumberList:
                     FAQNumberList.append(keywordAndNumber[1])
 
         dbCursor.execute('''
@@ -735,7 +592,7 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
         ''')
         for subcategoryAndNumber in dbCursor:
             for word in wordList:
-                if subcategoryAndNumber[0].find(word) != 0:
+                if subcategoryAndNumber[0].find(word) != -1 and subcategoryAndNumber[1] not in FAQNumberList:
                     FAQNumberList.append(subcategoryAndNumber[1])
 
         dbCursor.execute('''
@@ -743,92 +600,61 @@ def searchFAQByWord (dataClientEmail, dataClientPassword, dataSearchWord):
         ''')
         for linkPartNameAndNumber in dbCursor:
             for word in wordList:
-                if linkPartNameAndNumber[0].find(word) != 0:
+                if linkPartNameAndNumber[0].find(word) != -1 and linkPartNameAndNumber[1] not in FAQNumberList:
                     FAQNumberList.append(linkPartNameAndNumber[1])
 
-    except sqlite3.Error as errorMessage:
-        return errorMassage
-    finally:
-        dbConnection.close()
-
-    FAQNumberAndSortingNumber = {}
-    for FAQNumber in FAQNumberList:
-        if FAQNumber in FAQNumberAndSortingNumber:
-            FAQNumberAndSortingNumber[FAQNumber] += 1
-        else:
-            FAQNumberAndSortingNumber[FAQNumber] = 1
-
-    FAQNumberListDistinct = []
-    for FAQNumber in FAQNumberList:
-        if FAQNumber not in FAQNumberListDistinct:
-            FAQNumberListDistinct.append(FAQNumber)
-
-    try:
-        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
-        dbCursor = dbConnection.cursor()
-
-        for dataFAQNumber in FAQNumberListDistinct:
-            dbCursor.execute('''
-            SELECT COUNT(DISTINCT userID) FROM UserViewingOfFAQ
-             WHERE
-              FAQIsHelpful = 1 AND
-              FAQNumber = ?;
-            ''',
-            (dataFAQNumber,))
-            numberOfIsHelpful = dbCursor.fetchone()
-            FAQNumberAndSortingNumber[FAQNumber] += numberOfIsHelpful[0]
-
-        for dataFAQNumber in FAQNumberListDistinct:
-            dbCursor.execute('''
-            SELECT COUNT(FAQDateTimeViewed) FROM UserViewingOfFAQ
-             WHERE FAQNumber = ?;
-            ''',
-            (dataFAQNumber,))
-            numberOfViews = dbCursor.fetchone()
-            FAQNumberAndSortingNumber[FAQNumber] += numberOfViews[0]
-
-    except sqlite3.Error as errorMessage:
-        return errorMessage
-    finally:
-        dbConnection.close()
-
-    FAQNumberListDistinct.sort(reverse = True, key = lambda FAQNumber: FAQNumberAndSortingNumber[FAQNumber])
-        
-    try:
-        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
-        dbCursor = dbConnection.cursor()
-    
         FAQList = []
-        for dataFAQNumber in FAQNumberListDistinct:
+    
+        for dataFAQNumber in FAQNumberList:
             dbCursor.execute('''
             SELECT
-             FAQNumber,
-             FAQIsForComputer, 
-             FAQIsForSmartphone,
-             FAQCategory,
-             FAQTitle,
-             substr(FAQSubcategory, 1, 100)
-              FROM FrequentlyAskedQuestion
-               WHERE FAQNumber = ?;
+             DISTINCT f.FAQNumber,
+             f.FAQIsForComputer,
+             f.FAQIsForSmartphone,
+             f.FAQCategory,
+             f.FAQTitle,
+             datetime(MAX(e.FAQDateTimeEdited), "localtime")
+              FROM
+               FrequentlyAskedQuestion f,
+               AdministratorEditingOfFAQ e
+                WHERE
+                 f.FAQNumber = ? AND
+                 f.FAQNumber = e.FAQNumber;
             ''',
             (dataFAQNumber,))
             FAQ = dbCursor.fetchone()
             FAQList.append(FAQ)
+
+        for num in range(0, len(FAQList), 1):
+            faq = list(FAQList[num])
+            dbCursor.execute('''
+            SELECT
+             COUNT(DISTINCT userID)
+              FROM UserViewingOfFAQ
+               WHERE
+                FAQIsHelpful = 1 AND
+                 FAQNumber = ?;
+            ''',
+            (faq[0],))
+            helpnum = dbCursor.fetchone()
+            if helpnum[0] is not None:
+                faq.append(helpnum[0])
+            else:
+                faq.append(0)
+            faq = tuple(faq)
+            FAQList[num] = faq
+
         return FAQList
 
-    except sqlir3.Error as errorMessage:
+    except sqlite3.Error as errorMessage:
         return errorMessage
     finally:
         dbConnection.close()
               
         
         
-def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
+def viewFAQ (dataClientRole, dataClientEmail, dataFAQNumber):
 
-    dataClientEmail = dataClientEmail.strip()
-    errorMessage = validate_loginCredentials(dataClientEmail, dataClientPassword)
-    if errorMessage != None:
-        return errorMessage
 
     try:
 
@@ -836,34 +662,17 @@ def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
         dbCursor = dbConnection.cursor()
 
         #Check whether the person is a user or not
-        dbCursor.execute('''
-        SELECT EXISTS(
-         SELECT userEmail FROM User
-          WHERE userEmail = ?);
-        ''',
-        (dataClientEmail,))
-        existUser = dbCursor.fetchone()
-        if existUser[0] == 1:
-            #Check password
+        if dataClientRole == "user":
             dbCursor.execute('''
-            SELECT IIF ((
-             SELECT userPassword FROM User
-              WHERE userEmail = ?) = ?,
-             1,
-             0
-            ) isCorrect;
+            SELECT EXISTS(
+             SELECT userEmail FROM User
+              WHERE userEmail = ?);
             ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE User
-                 SET userIsLoggedIn = 0
-                WHERE userEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+            (dataClientEmail,))
+            existUser = dbCursor.fetchone()
+            if existUser[0] == 0:
+                return "Something wrong about the login credentials (email address). Please log in again."
+
             dbCursor.execute('''
             SELECT userIsLoggedIn FROM User
              WHERE userEmail = ?;
@@ -872,66 +681,19 @@ def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
             userLoggedIn = dbCursor.fetchone()
             if userLoggedIn[0] == 0:
                 return "You have logged out. Please log in again."
+
             dbCursor.execute('''
-            SELECT IIF(
-             SELECT EXISTS(
-              SELECT FAQNumber FROM UserViewingOfFAQ
-               WHERE
-                userID =
-                 (SELECT userID FROM User
-                  WHERE userEmail = ?) AND
-                FAQNumber = ?) AND
-             (SELECT DATETIME("now") -
-              (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
-               WHERE
-                userID =
-                 (SELECT userID FROM User
-                  WHERE userEmail - ?) AND
-                FAQNumber = ?)) <= 1,
-             1,
-             0
-            ) isRecordedWithinOneDayAgo;
+            INSERT INTO UserViewingOfFAQ(
+             userID, FAQDateTimeViewed, FAQNumber)
+              VALUES(
+               (SELECT userID FROM User
+                WHERE userEmail = ?),
+               (SELECT DATETIME("now")),
+               ?);
             ''',
-            (dataClientEmail, dataFAQNumber,
-             dataClientEmail, dataFAQNumber,))
-            viewingIsRecordedWithinOneDayAgo = dbCursor.fetchone()
-            if viewingIsRecordedWithinOneDayAgo[0] == 0:
-                dbCursor.execute('''
-                INSERT INTO UserViewingOfFAQ(
-                 userID, FAQDateTimeViewed, FAQNumber)
-                VALUES(
-                 SELECT userID FROM User
-                  WHERE userEmail = ?,
-                 SELECT DATETIME("now"),
-                 ?);
-                ''',
-                (dataClientEmail, dataFAQNumber,))
-                dbConnection.commit()
-                dbCursor.execute('''
-                SELECT IIF(
-                 SELECT EXISTS(
-                  SELECT FAQNumber FROM UserViewingOfFAQ
-                   WHERE
-                    userID =
-                     (SELECT userID FROM User
-                      WHERE userEmail = ?) AND
-                    FAQNumber = ?) AND
-                 ((SELECT DATETIME("now") -
-                  (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
-                   WHERE
-                    userID =
-                     (SELECT userID FROM User
-                      WHERE userEmail - ?) AND
-                    FAQNumber = ?))*(24*60)) <= 1,
-                 1,
-                 0
-                ) isRecordedWithinOneMinuteAgo;
-                ''',
-                (dataClientEmail, dataFAQNumber,
-                 dataClientEmail, dataFAQNumber,))
-                viewingIsRecordedWithinOneMinuteAgo = dbCursor.fetchone()
-                if viewingIsRecordedWithinOneMinuteAgo[0] == 0:
-                    return "Something wrong when recording in UserViewingOfFAQ."
+            (dataClientEmail, dataFAQNumber,))
+            dbConnection.commit()
+
             dbCursor.execute('''
             SELECT
              f.FAQNumber,
@@ -944,19 +706,36 @@ def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
              f.FAQContent,
              f.FAQLinkPartName,
              f.FAQLinkURL,
-             u.FAQIsHelpful,
-             MAX(u.FAQDateTimeViewed)
-              FROM FequentlyAskedQuestion f, UserViewingOfFAQ u
-               WHERE
-                u.userID =
-                 (SELECT userID FROM UserViewingOfFAQ
-                  WHERE userEmail = ?) AND
-                f.FAQNumber = ? AND
-                f.FAQNumber = u.FAQNumber;
+             datetime(MAX(e.FAQDateTimeEdited), "localtime"),
+             a.administratorEmail
+              FROM
+               FrequentlyAskedQuestion f,
+               AdministratorEditingOfFAQ e,
+               Administrator a
+                WHERE
+                 f.FAQNumber = ? AND
+                 f.FAQNumber = e.FAQNumber AND
+                 e.administratorID = a.administratorID;
             ''',
-            (dataUserEmail, dataFAQNumber,))
+            (dataFAQNumber,))
             FAQDetails = dbCursor.fetchone()
-            return FAQDetails[0]
+
+            dbCursor.execute('''
+            SELECT
+             FAQIsHelpful,
+             MAX(FAQDateTimeViewed)
+              FROM UserViewingOfFAQ
+               WHERE FAQNumber = ?
+               AND userID = (SELECT userID FROM User
+                WHERE userEmail = ?);
+            ''',
+            (dataFAQNumber, dataClientEmail,))
+            FAQHelpful = dbCursor.fetchone()
+            FAQDetails = list(FAQDetails)
+            FAQDetails.append(FAQHelpful[0])
+            FAQDetails = tuple(FAQDetails)
+            return FAQDetails
+
         else:
             #Check whether the person is an administrator or not
             dbCursor.execute('''
@@ -968,26 +747,7 @@ def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
             existAdministrator = dbCursor.fetchone()
             if existAdministrator[0] == 0:
                 return "Something wrong about the login credentials (email address). Please log in again."
-            #Check password
-            dbCursor.execute('''
-            SELECT IIF ((
-             SELECT administratorPassword FROM Administrator
-              WHERE administratorEmail = ?) = ?,
-            1,
-            0
-            ) isCorrect;
-            ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE Administrator
-                 SET administratorIsLoggedIn = 0
-                WHERE administratorEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
             dbCursor.execute('''
             SELECT administratorIsLoggedIn FROM Administrator
              WHERE administratorEmail = ?;
@@ -996,24 +756,33 @@ def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
             administratorLoggedIn = dbCursor.fetchone()
             if administratorLoggedIn[0] == 0:
                 return "You have logged out. Please log in again."
+
             dbCursor.execute('''
             SELECT
-             FAQNumber,
-             FAQIsForComputer,
-             FAQIsForSmartphone,
-             FAQCategory,
-             FAQTitle,
-             FAQKeyword,
-             FAQSubCategory,
-             FAQContent,
-             FAQLinkPartName,
-             FAQLinkURL
-              FROM FequentlyAskedQuestion
-               WHERE FAQNumber = ?;
+             f.FAQNumber,
+             f.FAQIsForComputer,
+             f.FAQIsForSmartphone,
+             f.FAQCategory,
+             f.FAQTitle,
+             f.FAQKeyword,
+             f.FAQSubCategory,
+             f.FAQContent,
+             f.FAQLinkPartName,
+             f.FAQLinkURL,
+             datetime(MAX(e.FAQDateTimeEdited), "localtime"),
+             a.administratorEmail
+              FROM
+               FrequentlyAskedQuestion f,
+               AdministratorEditingOfFAQ e,
+               Administrator a
+                WHERE
+                 f.FAQNumber = ? AND
+                 f.FAQNumber = e.FAQNumber AND
+                 e.administratorID = a.administratorID;
             ''',
             (dataFAQNumber,))
             FAQDetails = dbCursor.fetchone()
-            return FAQDetails[0]
+            return FAQDetails
 
     except sqlite3.Error as errorMessage:
         return errorMessage
@@ -1023,15 +792,8 @@ def viewFAQ (dataClientEmail, dataClientPassword, dataFAQNumber):
 
 
 
-def rateFAQ (dataUserEmail, dataUserPassword, dataFAQIsHelpful):
+def rateFAQ (dataUserEmail, dataFAQNumber, dataFAQIsHelpful):
 
-    if dataFAQIsHelpful not in [0, 1]:
-        return "FAQIsHelpful should either be 0 or 1."
-
-    dataUserEmail = dataUserEmail.strip()
-    errorMessage = validate_loginCredentials(dataUserEmail, dataUserPassword)
-    if errorMessage != None:
-        return errorMessage
 
     try:
 
@@ -1048,26 +810,7 @@ def rateFAQ (dataUserEmail, dataUserPassword, dataFAQIsHelpful):
         existUser = dbCursor.fetchone()
         if existUser[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT userPassword FROM User
-          WHERE userEmail = ?) = ?,
-        1,
-        0
-        ) isCorrect;
-        ''',
-        (dataUserEmail, dataUserPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE User
-             SET userIsLoggedIn = 0
-              WHERE userEmail = ?;
-            ''',
-            (dataUserEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
         dbCursor.execute('''
         SELECT userIsLoggedIn FROM User
          WHERE userEmail = ?;
@@ -1076,66 +819,21 @@ def rateFAQ (dataUserEmail, dataUserPassword, dataFAQIsHelpful):
         userLoggedIn = dbCursor.fetchone()
         if userLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
         dbCursor.execute('''
-        SELECT IIF(
-         SELECT EXISTS(
+        SELECT EXISTS(
           SELECT FAQNumber FROM UserViewingOfFAQ
            WHERE
             userID =
              (SELECT userID FROM User
               WHERE userEmail = ?) AND
-               FAQNumber = ?) AND
-         (SELECT DATETIME("now") -
-          (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
-           WHERE
-            userID =
-             (SELECT userID FROM User
-              WHERE userEmail - ? AND
-               FAQNumber = ?)) <= 1,
-         1,
-         0
-        ) isRecordedWithinOneDayAgo;
+               FAQNumber = ?);
         ''',
-        (dataClientEmail, dataFAQNumber,
-         dataClientEmail, dataFAQNumber,))
-        viewingIsRecordedWithinOneDayAgo = dbCursor.fetchone()
-        if viewingIsRecordedWithinOneDayAgo[0] == 0:
-            dbCursor.execute('''
-            INSERT INTO UserViewingOfFAQ(
-             userID, FAQDateTimeViewed, FAQNumber)
-            VALUES(
-             SELECT userID FROM User
-              WHERE userEmail = ?,
-             SELECT DATETIME("now"),
-             ?);
-            ''',
-            (dataClientEmail, dataFAQNumber,))
-            dbConnection.commit()
-            dbCursor.execute('''
-            SELECT IIF(
-             SELECT EXISTS(
-              SELECT FAQNumber FROM UserViewingOfFAQ
-               WHERE
-                userID =
-                 (SELECT userID FROM User
-                  WHERE userEmail = ?) AND
-                 FAQNumber = ?) AND
-             ((SELECT DATETIME("now") -
-              (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
-               WHERE
-                userID =
-                 (SELECT userID FROM User
-                  WHERE userEmail - ?) AND
-                 FAQNumber = ?))*(24*60)) <= 1,
-             1,
-             0
-            ) isRecordedWithinOneMinuteAgo;
-            ''',
-            (dataClientEmail, dataFAQNumber,
-             dataClientEmail, dataFAQNumber,))
-            viewingIsRecordedWithinOneMinuteAgo = dbCursor.fetchone()
-            if viewingIsRecordedWithinOneMinuteAgo[0] == 0:
-                return "Something wrong when recording in UserViewingOfFAQ."
+        (dataUserEmail, dataFAQNumber,))
+        hasRecord = dbCursor.fetchone()
+        if hasRecord[0] == 0:
+                return "Something wrong about the record of your viewing of FAQ."
+
         dbCursor.execute('''
         UPDATE UserViewingOfFAQ
          SET FAQIsHelpful = ?
@@ -1145,40 +843,34 @@ def rateFAQ (dataUserEmail, dataUserPassword, dataFAQIsHelpful):
              WHERE userEmail = ?) AND
            FAQNumber = ? AND
            FAQDateTimeViewed =
-            (SELECT MAX(FAQDatetimeViewed) FROM UserViewingOfFAQ
-             WHERE
-              userID =
-               (SELECT userID FROM User
-                WHERE userEmail = ?) AND
-              FAQNumber = ?);
+            (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
+              WHERE userID = (SELECT userID FROM User WHERE userEmail = ?));
         ''',
-        (dataFAQIsHelpful, dataUserEmail, dataFAQNumber,
-         dataUserEmail, dataFAQNumber,))
-        dbConnection.commit()
+        (dataFAQIsHelpful, dataUserEmail, dataFAQNumber, dataUserEmail,))
+
         dbCursor.execute('''
-        SELECT IIF(
-         SELECT FAQIsHelpful FROM UserViewingOfFAQ
+        SELECT FAQIsHelpful
+         FROM UserViewingOfFAQ
           WHERE
            userID =
             (SELECT userID FROM User
              WHERE userEmail = ?) AND
            FAQNumber = ? AND
            FAQDateTimeViewed =
-            (SELECT MAX(FAQDatetimeViewed) FROM UserViewingOfFAQ
-             WHERE
-              userID =
-               (SELECT userID FROM User
-                WHERE userEmail = ?) AND
-              FAQNumber = ?) = ?,
-         "The rating is updated."
-         "Something wrong when updating the rating in UserViewingOfFAQ."
-        ) message;
+            (SELECT MAX(FAQDateTimeViewed) FROM UserViewingOfFAQ
+              WHERE userID = (SELECT userID FROM User WHERE userEmail = ?));
         ''',
-        (dataUserEmail, dataFAQNumber,
-         dataUserEmail, dataFAQNumber,
-         dataFAQIsHelpful,))
-        returnMessage = dbCursor.fetchone()
-        return returnMessage[0]
+        (dataUserEmail, dataFAQNumber, dataUserEmail,))
+        ratingChanged = 1
+        for rating in dbCursor:
+            if rating[0] != dataFAQIsHelpful:
+                ratingChanged = 0
+                break
+        if ratingChanged == 1:
+            dbConnection.commit()
+            return "Rating is updated."
+        else:
+            return "Something wrong when updating the rating in the database."
 
     except sqlite3.Error as errorMessage:
         return errorMessage

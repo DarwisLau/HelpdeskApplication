@@ -1,7 +1,5 @@
-from ValidateData import validate_loginCredentials
 import sqlite3
-import base64
-from HelpdeskApplicationDatabase import createDatabase
+from HelpdeskApplicationDatabase import createDatabase, dropDatabase
 
 
 def registerUser (dataEmail, dataPassword):
@@ -12,15 +10,12 @@ def registerUser (dataEmail, dataPassword):
        Input should be string.
        Output is string."""
 
-
+    #dropDatabase() #Used when the structure of database is changed, normally commented
     #Create a new database if database does not exist
     try:
         createDatabase()
-    except:
+    except sqlite3.Error:
         pass
-
-    #Remove the spaces in front and back of email address since it is the unique identifier
-    dataEmail = dataEmail.strip()
     
     #Insert into database
     try:
@@ -95,11 +90,8 @@ def loginAndGetRole (dataEmail, dataPassword):
     #Create a new database if database does not exist
     try:
         createDatabase()
-    except:
+    except sqlite3.Error:
         pass
-    
-    #Remove the spaces in front and back of email address since it is the unique identifier
-    dataEmail = dataEmail.strip()
 
     #Check with the database
     try:
@@ -219,8 +211,7 @@ def logoutUserAndAdministrator (dataEmail, theRole):
        Input should be string.
        Output is string."""
     
-    dataEmail = dataEmail.strip()
-    
+
     try:
         dbConnection = sqlite3.connect('HelpdeskApplication.sqlite')
         dbCursor = dbConnection.cursor()
@@ -282,14 +273,13 @@ def registerAdministrator (dataEmail, dataPassword):
 
     """Function to register a new administrator account from the backend.
        Input should be both string.
-       No output."""
+       Output is string."""
 
-    #Encrypt password and validate data
-    dataEmail = dataEmail.strip()
-    errorMessage = validate_loginCredentials(dataEmail, dataPassword)
-    if errorMessage != None:
-        print(errorMessage)
-        return
+    #Create a database if database does not exist
+    try:
+        createDatabase()
+    except sqlite3.Error:
+        pass
 
     #Insert into database
     try:
@@ -305,8 +295,7 @@ def registerAdministrator (dataEmail, dataPassword):
         (dataEmail,))
         existAdministrator = dbCursor.fetchone()
         if existAdministrator[0] == 1:
-            print("This administrator already exists.")
-            return
+            return "This administrator already exists."
 
         #Check whether the email address is used by a user or not
         dbCursor.execute('''
@@ -317,8 +306,7 @@ def registerAdministrator (dataEmail, dataPassword):
         (dataEmail,))
         existUser = dbCursor.fetchone()
         if existUser[0] == 1:
-            print("This email address has been used to register a user account, so the same email address cannot be used to register an administrator account.")
-            return
+            return "This email address has been used to register a user account, so the same email address cannot be used to register an administrator account."
 
         #Insert into database
         dbCursor.execute('''
@@ -337,18 +325,226 @@ def registerAdministrator (dataEmail, dataPassword):
           WHERE administratorEmail = ?) = ? AND
          (SELECT administratorPassword FROM Administrator
           WHERE administratorEmail = ?) = ?),
-         "The registration was successful.",
+         "Registration was successful.",
          "Something wrong when inserting the information to the database. Please try again."
          ) message;
         ''',
         (dataEmail, dataEmail,
          dataEmail, dataPassword,))
         returnMessage = dbCursor.fetchone()
-        print(returnMessage[0])
-        return
+        return returnMessage[0]
 
     except sqlite3.Error as errorMessage:
-        print(errorMessage)
-        return
+        return errorMessage
     finally:
         dbConnection.close()
+
+#print(loginAndGetRole("chan2@mail.com","18010392"))
+'''MDRectangleFlatButton:
+			text:"Back"
+			font_size: 15
+			size_hint_y: None
+			pos_hint:{"x":0.75,"y":0.85}
+			text_color:("#99c742")
+			on_press:
+				app.clearSelectedForm()
+				root.ids.container.clear_widgets()
+				app.root.current = "Main Menu"
+				root.manager.transition.direction = "down"
+
+		MDLabel:
+			text:"List of Helpdesk Forms"
+			font_style: "H4"
+			size_hint_y: None
+			pos_hint:{"x":0.05,"y":0.85}
+			height: self.texture_size[1]
+			padding_y:15
+
+		MDList:
+			id:container
+			pos_hint:{"x":0.05,"y":0.40}
+
+		MDRectangleFlatButton:
+			text:"View Form"
+			id: view_form_button
+			font_size: 15
+			size_hint_y: None
+			pos_hint:{"x":150/800,"y":70/500}
+			text_color:("#99c742")
+			on_press: 
+				app.loadSelectedForm() if view_form_button.text == "ViewForm" else app.loadImage()
+				app.root.current = "ViewHelpdeskForm" if view_form_message.text == "Loading image..." else "Helpdesk Form List"
+				root.ids.view_form_message.text = "" if view_form_message.text == "Loading image..." else view_form_message.text
+				root.manager.transition.direction = "left"
+
+		MDRectangleFlatButton:
+			text:"New Form"
+			font_size: 15
+			size_hint_y: None
+			pos_hint:{"x":485/800,"y":70/500}
+			text_color:("#99c742")
+			on_press:
+				app.clearSelectedForm()
+				root.ids.container.clear_widgets()
+				root.ids.view_form_message.text = ""
+				app.root.current = "Helpdesk form"
+				root.manager.transition.direction = "left"
+
+		MDLabel:
+			id: view_form_message
+			text:" "
+			size_hint_y: None
+			font_size: 15
+			pos_hint:{"x":150/800,"y":50/500}
+			height: self.texture_size[1]'''
+'''
+	ScrollView:
+		do_scroll_x: False
+		MDList:
+			MDRectangleFlatIconButton:
+				text:"Back"
+				font_size: 15
+				size_hint_y: None
+				pos_hint: {"right":1}
+				text_color:("#99c742")
+				on_press: 
+					app.clearHelpdeskFormList("formDetailsOnly")
+					root.ids.form_description_user.text = ""
+					root.ids.form_image_user.source = None
+					app.root.current = "HelpdeskFormList"
+					root.manager.transition.direction = "right"
+
+			MDLabel:
+				text:"View Helpdesk Forms"
+				font_style: "H4"
+				size_hint_y: None
+				height: self.texture_size[1]
+				padding_y:15
+
+			MDLabel:
+				id: form_description_user
+				text:""
+				size_hint_y: None
+				font_size:20
+				height: self.texture_size[1]
+
+			Image:
+				id: form_image_user
+				source: None
+
+<viewhelpdeskformadministrator>
+	name:"ViewHelpdeskFormAdministrator"
+	
+	ScrollView:
+		do_scroll_x: False
+		MDList:
+			MDRectangleFlatIconButton:
+				text:"Back"
+				font_size: 15
+				size_hint_y: None
+				text_color:("#99c742")
+				on_press: 
+					app.clearHelpdeskFormList("formDetailsOnly")
+					root.ids.form_description_administrator.text = ""
+					root.ids.form_image_administrator.source = None
+					root.ids.solved_message.text = ""
+					app.root.current = "HelpdeskFormList"
+					root.manager.transition.direction = "right"
+
+			MDLabel:
+				text:"View Helpdesk Forms"
+				font_style: "H4"
+				size_hint_y: None
+				height: self.texture_size[1]
+				padding_y:15
+
+			MDLabel:
+				id: form_description_administrator
+				text:""
+				size_hint_y: None
+				font_size:20
+				height: self.texture_size[1]
+
+			Image:
+				id: form_image_administrator
+				source: None
+'''
+'''if CURRENT_USER_ROLE == "user":
+                        viewhelpdeskformuser_instance = self.root.get_screen("ViewHelpdeskFormUser")
+                else:
+                        viewhelpdeskformadministrator_instance = self.root.get_screen("ViewHelpdeskFormAdministrator")
+                
+                global formList, currentLastNumber, formDetails
+
+                try:
+                        if currentLastNumber < 0:
+                                return
+                except NameError:
+                        return
+
+                if currentLastNumber == len(formList) - 1:
+                        remainder = (currentLastNumber + 1)%5
+                        if remainder == 4:
+                                num = num - 1
+                        elif remainder == 3:
+                                num = num - 2
+                        elif remainder == 2:
+                                num = num - 3
+                        elif remainder == 1:
+                                num = num - 4
+                formIndex = currentLastNumber - num
+                if formIndex < len(formList):
+                        formNumber = formList[formIndex][0]
+                if formNumber > 0:
+                        if CURRENT_USER_ROLE == "user":
+                                viewhelpdeskformuser_instance.ids.form_description_user.text = "Obtaining Helpdesk Form details..."
+                        else:
+                                viewhelpdeskformadministrator_instance.ids.form_description_administrator.text = "Obtaining Helpdesk Form details..."
+                        formDetails = viewForm(CURRENT_USER_ROLE, CURRENT_USER_EMAIL, formNumber)
+                        if type(formDetails) == str:
+                                if CURRENT_USER_ROLE == "user":
+                                        viewhelpdeskformuser_instance.ids.form_description_user.text = formDetails
+                                else:
+                                        viewhelpdeskformadministrator_instance.ids.form_description_administrator.text = formDetails
+                        else:
+                                formList = None
+                                currentLastNumber = None
+                                if CURRENT_USER_ROLE == "user":
+                                        viewhelpdeskformuser_instance.ids.form_description_user.text = "Loading Helpdesk Form..."
+                                else:
+                                        viewhelpdeskformadministrator_instance.ids.form_description_administrator.text = "Loading Helpdesk Form.."
+                                if formDetails[1] == 0:
+                                        formStatus = " (Pending)"
+                                else:
+                                        formStatus = " (Solved)"
+                                helpdeskform_title = "Helpdesk Form Number: " + str(formDetails[1]) + formStatus + "\n"
+                                if len(formDetails) == 6:
+                                        helpdeskform_linebelowtitle = "Admin: " + formDetails[5] + "\n\n"
+                                else:
+                                        helpdeskform_linebelowtitle = "\n\n"
+                                if formDetails[2] != "":
+                                        helpdeskform_email = "User email address: " + formDetails[3] + "\n\n\n"
+                                else:
+                                        helpdeskform_email = "User email address: " + formDetails[2] + "; " + formDetails[3] + "\n\n\n"
+                                helpdeskform_description = formDetails[4]
+                                if CURRENT_USER_ROLE == "user":
+                                        viewhelpdeskformuser_instance.ids.form_description_user.text = helpdeskform_title + helpdeskform_linebelowtitle + helpdeskform_email + helpdeskform_description
+                                else:
+                                        viewhelpdeskformadministrator_instance.ids.form_description_administrator.text = helpdeskform_title + helpdeskform_linebelowtitle + helpdeskform_email + helpdeskform_description
+                                if formDetails[6] == 1:
+                                        if CURRENT_USER_ROLE == "user":
+                                                viewhelpdeskformuser_instance.ids.form_image_user.source = formDetails[5]
+                                        else:
+                                                viewhelpdeskformadministrator_instance.ids.form_image_administrator.source = formDetails[5]'''
+'''viewhelpdeskformadministrator_instance = self.root.get_screen("ViewHelpdeskFormAdministrator")
+
+                if CURRENT_USER_ROLE == "administrator":
+                        solvedMessage = setFormAsSolved(CURRENT_USER_EMAIL, formDetails[0])
+                        if solvedMessage == "Status is updated.":
+                                formDetails[1] = 1
+                                viewhelpdeskformadministrator_instance.form_description_administrator.text = viewhelpdeskformadministrator_instance.form_description_administrator.text.replace("Pending", "Solved", 1)
+                        else:
+                                viewhelpdeskformadministrator_instance.solved_message.text = solvedMessage'''
+
+#print(registerAdministrator("chan10@mail.com","18010392"))
+#print(loginAndGetRole("chan10@mail.com","18010392"))

@@ -3,21 +3,8 @@ import sqlite3
 
 
 
-def submitForm (dataUserEmail, dataUserPassword, dataFormEmail, dataFormDescription, imagePath):
+def userSubmitForm (dataUserEmail, dataFormEmail, dataFormDescription, imagePath):
 
-
-    dataUserEmail = dataUseremail.strip()
-    errorMessage = validate_loginCredentials(dataUserEmail, dataUserPassword)
-    if errorMessage != None:
-        return errorMessage
-
-    dataFormEmail = dataFormEmail.strip()
-    errorMessage = validate_formData(dataEmail, dataDescription)
-    if errorMessage != None:
-        return errorMessage
-
-    imageFileConnection = open(imagePath, "rb")
-    dataFormImage = imageFileConnection.write()
 
     try:
         dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
@@ -33,26 +20,8 @@ def submitForm (dataUserEmail, dataUserPassword, dataFormEmail, dataFormDescript
         existUser = dbCursor.fetchone()
         if existUser[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT userPassword FROM User
-          WHERE userEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataUserEmail, dataUserPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE User
-             SET userIsLoggedIn = 0
-              WHERE userEmail = ?;
-            ''',
-            (dataUserEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
+        #Check whether the user is currently logged in
         dbCursor.execute('''
         SELECT userIsLoggedIn FROM User
          WHERE userEmail = ?;
@@ -61,58 +30,92 @@ def submitForm (dataUserEmail, dataUserPassword, dataFormEmail, dataFormDescript
         userLoggedIn = dbCursor.fetchone()
         if userLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
+    except sqlite3.Error as errorMessage:
+        return errorMessage
+    finally:
+        dbConnection.close()
+
+    #Open the image file
+    try:
+        if len(imagePath) > 0:
+            imageFileConnection = open(imagePath, "rb")
+            dataFormImage = imageFileConnection.read()
+        else:
+            dataFormImage = b""
+    except FileNotFoundError as errorMessage:
+        return errorMessage
+    finally:
+        try:
+            imageFileConnection.close()
+        except UnboundLocalError:
+            pass
+
+    try:
+        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
+        dbCursor = dbConnection.cursor()
+            
+        #Set the form number
+        dbCursor.execute('''
+        SELECT MAX(formNumber) FROM Form;
+        ''')
+        maximumFormNumber = dbCursor.fetchone()
+        if maximumFormNumber[0] is not None:
+            dataFormNumber = maximumFormNumber[0] + 1
+        else:
+            dataFormNumber = 1
+
+
+        #Inserting the form details into the database
         dbCursor.execute('''
         INSERT INTO Form (
-         userID, formEmail, formDescription, formImage)
+         formNumber, userID, formEmail, formDescription, formImage)
         VALUES (
+         ?,
          (SELECT UserID FROM User
           WHERE userEmail = ?),
          ?,
          ?,
          ?);
         ''',
-        (dataUserEmail, dataFormEmail, dataFormDescription, dataFormImage,))
-        dbConnection.commit()
+        (dataFormNumber, dataUserEmail, dataFormEmail, dataFormDescription, dataFormImage,))
+
+        #Check whether the insertion was successful or not
         dbCursor.execute('''
-        SELECT IIF((
+        SELECT IIF(
+         (SELECT userID FROM Form
+          WHERE formNumber = ?) =
+           (SELECT userID FROM User
+            WHERE userEmail = ?) AND
          (SELECT formEmail FROM Form
-          WHERE userID =
-           (SELECT userID FROM User
-            WHERE userEmail = ?)) = ? AND
+          WHERE formNumber = ?) = ? AND
          (SELECT formDescription FROM Form
-          WHERE userID =
-           (SELECT userID FROM User
-            WHERE userEmail = ?)) = ? AND
-         (SELECT formImage FROM User
-          WHERE userID =
-           (SELECT userID FROM User
-            WHERE userEmail = ?)) = ?),
-         "Submission was successful.",
+          WHERE formNumber = ?) = ? AND
+         (SELECT formImage FROM Form
+          WHERE formNumber = ?) = ?,
+         "Helpdesk Form is submitted.",
          "Something wrong when inserting the information into the database."
         ) message;
         ''',
-        (dataUserEmail, dataFormEmail,
-        dataUserEmail, dataFormDescription,
-        dataUserEmail, dataFormImage,))
+        (dataFormNumber, dataUserEmail,
+         dataFormNumber, dataFormEmail, 
+         dataFormNumber, dataFormDescription,
+         dataFormNumber, dataFormImage,))
         returnMessage = dbCursor.fetchone()
+        if returnMessage[0] == "Helpdesk Form is submitted.":
+            dbConnection.commit()
         return returnMessage[0]
 
     except sqlite3.Error as errorMessage:
         return errorMessage
     finally:
-        imageFileConnection.close()
         dbConnection.close()
 
 
 
 
-def listFormsSubmitted (dataUserEmail, dataUserPassword):
+def listFormsSubmitted (dataUserEmail):
 
-
-    dataUserEmail = dataUserEmail.strip()
-    errorMessage = validate_loginCredentials(dataUserEmail, dataUserPassword)
-    if errorMessage != None:
-        return errorMessage
 
     try:
 
@@ -129,26 +132,8 @@ def listFormsSubmitted (dataUserEmail, dataUserPassword):
         existUser = dbCursor.fetchone()
         if existUser[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT userPassword FROM User
-          WHERE userEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataUserEmail, dataUserPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE User
-             SET userIsLoggedIn = 0
-            WHERE userEmail = ?;
-            ''',
-            (dataUserEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+        
+        #Check whether the user is logged in or not
         dbCursor.execute('''
         SELECT userIsLoggedIn FROM User
          WHERE userEmail = ?;
@@ -157,11 +142,17 @@ def listFormsSubmitted (dataUserEmail, dataUserPassword):
         userLoggedIn = dbCursor.fetchone()
         if userLoggedIn[0] == 0:
             return "You have logged out. Please login again."
+
+        #Get forms
         dbCursor.execute('''
-        SELECT formNumber, formDescription FROM Form
-         WHERE userID =
-          (SELECT userID FROM User
-           WHERE userEmail = ?);
+        SELECT
+         formNumber,
+         formIsSolved,
+         substr(formDescription, 1, 100)
+          FROM Form
+           WHERE userID =
+            (SELECT userID FROM User
+             WHERE userEmail = ?);
         ''',
         (dataUserEmail,))
         formList = []
@@ -176,154 +167,8 @@ def listFormsSubmitted (dataUserEmail, dataUserPassword):
 
 
 
+def listAllForms (dataAdministratorEmail):
 
-def viewForm (dataClientEmail, dataClientPassword, dataFormNumber):
-
-    
-    dataClientEmail = dataClientEmail.strip()
-    errorMessage = validate_loginCredentials(dataClientEmail, dataClientPassword)
-    if errorMessage != None:
-        return errorMessage
-
-    try:
-
-        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
-        dbCursor = dbConnection.cursor()
-
-        #Check whether the person is a user or not
-        dbCursor.execute('''
-        SELECT EXISTS(
-         SELECT userEmail FROM User
-          WHERE userEmail = ?);
-        ''',
-        (dataClientEmail,))
-        existUser = dbCursor.fetchone()
-        if existUser[0] == 1:
-            #Check password
-            dbCursor.execute('''
-            SELECT IIF ((
-             SELECT userPassword FROM User
-              WHERE userEmail = ?) = ?,
-             1,
-             0
-            ) isCorrect;
-            ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE User
-                 SET userIsLoggedIn = 0
-                WHERE userEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
-            dbCursor.execute('''
-            SELECT userIsLoggedIn FROM User
-             WHERE userEmail = ?;
-            ''',
-            (dataClientEmail,))
-            userLoggedIn = dbCursor.fetchone()
-            if userLoggedIn[0] == 0:
-                return "You have logged out. Please log in again."
-        else:
-            #Check whether the person is an administrator or not
-            dbCursor.execute('''
-            SELECT EXISTS(
-             SELECT administratorEmail FROM Administrator
-              WHERE administratorEmail = ?);
-            ''',
-            (dataClientEmail,))
-            existAdministrator = dbCursor.fetchone()
-            if existAdministrator[0] == 0:
-                return "Something wrong about the login credentials (email address). Please log in again."
-            #Check password
-            dbCursor.execute('''
-            SELECT IIF ((
-             SELECT administratorPassword FROM Administrator
-              WHERE administratorEmail = ?) = ?,
-            1,
-            0
-            ) isCorrect;
-            ''',
-            (dataClientEmail, dataClientPassword,))
-            passwordIsCorrect = dbCursor.fetchone()
-            if passwordIsCorrect[0] == 0:
-                dbCursor.execute('''
-                UPDATE Administrator
-                 SET administratorIsLoggedIn = 0
-                WHERE administratorEmail = ?;
-                ''',
-                (dataClientEmail,))
-                dbConnection.commit()
-                return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
-            dbCursor.execute('''
-            SELECT administratorIsLoggedIn FROM Administrator
-             WHERE administratorEmail = ?;
-            ''',
-            (dataClientEmail,))
-            administratorLoggedIn = dbCursor.fetchone()
-            if administratorLoggedIn[0] == 0:
-                return "You have logged out. Please log in again."
-            dbCursor.execute('''
-            INSERT INTO AdministratorViewingOfForm (
-             administratorID, formDateTimeViewed, formNumber)
-            VALUES(
-             SELECT administratorID FROM Administrator
-              WHERE administratorEmail = ?,
-             SELECT datetime("now"),
-             ?);
-            ''',
-            (dataClientEmail, dataFormNumber,))
-            dbConnection.commit()
-            dbCursor.execute('''
-            SELECT IIF(
-             SELECT EXISTS(
-              SELECT formNumber FROM AdministratorViewingOfFAQ
-               WHERE
-                administratorID = (
-                 SELECT administratorID FROM Administrator
-                  WHERE administratorEmail = ?) AND
-                formNumber = ?) AND
-             (((SELECT datetime("now")) -
-              (SELECT MAX(formDateTimeViewed) FROM AdministratorViewingOfFAQ
-               WHERE
-                administratorID = (
-                 SELECT administratorID FROM Administrator
-                  WHERE administratorEmail = ?) AND
-                formNumber = ?))*(24*60)) <= 1),
-             1,
-             0
-             ) isRecordedWithinOneMinuteAgo;
-            ''',
-            (dataClientEmail, dataFormNumber,
-             dataClientEmail, dataFormNumber,))
-            viewingIsRecordedWithinOneMinuteAgo = dbCursor.fetchone()
-            if viewingIsRecorded[0] == 0:
-                return "Something wrong when creating new record in AdministratorViewingOfForm)."                        
-        dbCursor.execute('''
-        SELECT formIsSolved, formEmail, formDescription, formImage FROM Form
-         WHERE formNumber = ?;
-        ''',
-        (dataFormNumber,))
-        formDetails = dbCursor.fetchone()
-        return formDetails[0]
-
-    except sqlite3.Error as errorMessage:
-        return errorMessage
-    finally:
-        dbConnection.close()
-
-
-
-
-def listAllForms (dataAdministratorEmail, dataAdministratorPassword):
-
-    dataAdministratorEmail = dataAdministratorEmail.strip()
-    errorMessage = validate_loginCredentials(dataAdministratorEmail, dataadministratorPassword)
-    if errorMessage != None:
-        return errorMessage
 
     try:
 
@@ -340,26 +185,8 @@ def listAllForms (dataAdministratorEmail, dataAdministratorPassword):
         existAdministrator = dbCursor.fetchone()
         if existAdministrator[0] == 0:
             return "Something wrong about the login credentials (email adress). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT administratorPassword FROM Administrator
-          WHERE administratorEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataAdministratorEmail, dataAdministratorPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE Administrator
-             SET administratorIsLoggedIn = 0
-            WHERE administratorEmail = ?;
-            ''',
-            (dataAdministratorEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+        
+        #Check whether the administrator is logged in or not
         dbCursor.execute('''
         SELECT administratorIsLoggedIn FROM Administrator
          WHERE administratorEmail = ?;
@@ -368,8 +195,14 @@ def listAllForms (dataAdministratorEmail, dataAdministratorPassword):
         administratorLoggedIn = dbCursor.fetchone()
         if administratorLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
+        #Get forms
         dbCursor.execute('''
-        SELECT formNumber, formDescription FROM Form;
+        SELECT
+         formNumber,
+         formIsSolved,
+         substr(formDescription, 1, 100)
+          FROM Form;
         ''',)
         formList = []
         for form in dbCursor:
@@ -383,17 +216,161 @@ def listAllForms (dataAdministratorEmail, dataAdministratorPassword):
 
 
 
+def viewForm (dataClientRole, dataClientEmail, dataFormNumber):
 
-def setFormAsSolved (dataAdministratorEmail, dataAdministratorPassword, dataFormNumber):
-
-    dataAdministratorEmail = dataAdministratorEmail.strip()
-    errorMessage = validate(dataAdministratorEmail, dataAdministratorPassword)
-    if errorMEssage != None:
-        return errorMessage
 
     try:
 
-        dbConnection.connect("HelpdeskApplication.sqlite")
+        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
+        dbCursor = dbConnection.cursor()
+
+        if dataClientRole == "user":
+            #Check whether the person is a user or not
+            dbCursor.execute('''
+            SELECT EXISTS(
+             SELECT userEmail FROM User
+              WHERE userEmail = ?);
+            ''',
+            (dataClientEmail,))
+            existUser = dbCursor.fetchone()
+            if existUser[0] == 0:
+                return "Something wrong about the login credentials (email address). Please log in again."
+
+            #Check whether the user has logged in
+            dbCursor.execute('''
+            SELECT userIsLoggedIn FROM User
+             WHERE userEmail = ?;
+            ''',
+            (dataClientEmail,))
+            userLoggedIn = dbCursor.fetchone()
+            if userLoggedIn[0] == 0:
+                return "You have logged out. Please log in again."
+
+            #Check whether the user is the user who submitted the Helpdesk Form
+            dbCursor.execute('''
+            SELECT IIF(
+             (SELECT u.userEmail
+              FROM User u, Form f
+               WHERE
+                f.formNumber = ? AND
+                f.userID = u.userID) = ?,
+             1,
+             0
+            ) isCorrectUser;
+            ''',
+            (dataFormNumber, dataClientEmail,))
+            correctUser = dbCursor.fetchone()
+            if correctUser[0] == 0:
+                return "Something wrong about either the form number or the login credentials (email address). Please try to reload the form list or log in again."
+
+        else:
+            #Check whether the person is an administrator or not
+            dbCursor.execute('''
+            SELECT EXISTS(
+             SELECT administratorEmail FROM Administrator
+              WHERE administratorEmail = ?);
+            ''',
+            (dataClientEmail,))
+            existAdministrator = dbCursor.fetchone()
+            if existAdministrator[0] == 0:
+                return "Something wrong about the login credentials (email address). Please log in again."
+
+            #Check whether the administrator has logged in
+            dbCursor.execute('''
+            SELECT administratorIsLoggedIn FROM Administrator
+             WHERE administratorEmail = ?;
+            ''',
+            (dataClientEmail,))
+            administratorLoggedIn = dbCursor.fetchone()
+            if administratorLoggedIn[0] == 0:
+                return "You have logged out. Please log in again."
+
+            #Record the viewing of the form by the administrator
+            dbCursor.execute('''
+            INSERT INTO AdministratorViewingOfForm (
+             administratorID, formDateTimeViewed, formNumber)
+            VALUES(
+             (SELECT administratorID FROM Administrator
+              WHERE administratorEmail = ?),
+             (SELECT datetime("now")),
+             ?);
+            ''',
+            (dataClientEmail, dataFormNumber,))
+
+            dbCursor.execute('''
+            SELECT a.administratorEmail, MAX(v.formDateTimeViewed)
+             FROM Administrator a, AdministratorViewingOFForm v
+              WHERE
+               v.formNumber = ? AND
+               v.administratorID = a.administratorID;
+            ''',
+            (dataFormNumber,))
+            isRecorded = dbCursor.fetchone()
+            if isRecorded[0] == dataClientEmail:
+                dbConnection.commit()
+            else:
+                return "Something wrong when recording the administrator who viewed the form."
+
+        #Get the form details
+        dbCursor.execute('''
+        SELECT
+         f.formNumber,
+         f.formIsSolved,
+         f.formEmail,
+         u.userEmail,
+         f.formDescription,
+         f.formImage
+          FROM Form f, User u
+           WHERE
+            f.formNumber = ? AND
+            f.userID = u.userID;
+        ''',
+        (dataFormNumber, ))
+        formDetails = dbCursor.fetchone()
+
+        #Get an indication of whether there is an image attached to the Helpdesk Form
+        dbCursor.execute('''
+        SELECT IIF(
+         (SELECT formImage FROM Form
+          WHERE formNumber = ?) = ?,
+         0,
+         1
+        ) hasImage;
+        ''',
+        (dataFormNumber, b"",))
+        hasImage = dbCursor.fetchone()
+        formDetails = list(formDetails)
+        formDetails.append(hasImage[0])
+
+        #Get the administrator's email whom solved the Helpdesk Form if it is already solved
+        if formDetails[1] == 1:
+            dbCursor.execute('''
+            SELECT a.administratorEmail
+             FROM Administrator a, AdministratorViewingOfForm v
+              WHERE
+               v.formSetAsSolved = 1 AND
+               v.formNumber = ? AND
+               v.administratorID = a.administratorID;
+            ''',
+            (dataFormNumber,))
+            administratorSolved = dbCursor.fetchone()
+            formDetails.append(administratorSolved[0])
+
+        return formDetails
+
+    except sqlite3.Error as errorMessage:
+        return errorMessage
+    finally:
+        dbConnection.close()
+
+
+
+def setFormAsSolved (dataAdministratorEmail, dataFormNumber):
+
+
+    try:
+
+        dbConnection = sqlite3.connect("HelpdeskApplication.sqlite")
         dbCursor = dbConnection.cursor()
 
         #Check whether the person is an administrator or not
@@ -406,26 +383,8 @@ def setFormAsSolved (dataAdministratorEmail, dataAdministratorPassword, dataForm
         existAdministrator = dbCursor.fetchone()
         if existAdministrator[0] == 0:
             return "Something wrong about the login credentials (email address). Please log in again."
-        #Check password
-        dbCursor.execute('''
-        SELECT IIF ((
-         SELECT administratorPassword FROM Administrator
-          WHERE administratorEmail = ?) = ?,
-         1,
-         0
-        ) isCorrect;
-        ''',
-        (dataAdministratorEmail, dataAdministratorPassword,))
-        passwordIsCorrect = dbCursor.fetchone()
-        if passwordIsCorrect[0] == 0:
-            dbCursor.execute('''
-            UPDATE Administrator
-             SET administratorIsLoggedIn = 0
-            WHERE administratorEmail = ?;
-            ''',
-            (dataAdministratorEmail,))
-            dbConnection.commit()
-            return "Something wrong about the login credentials (password). You have been automatically logged out. Please log in again. Sorry for any inconvinience caused."
+
+        #Check whether the administrator is loggeed in
         dbCursor.execute('''
         SELECT administratorIsLoggedIn FROM Administrator
          WHERE administratorEmail = ?;
@@ -434,6 +393,8 @@ def setFormAsSolved (dataAdministratorEmail, dataAdministratorPassword, dataForm
         administratorLoggedIn = dbCursor.fetchone()
         if administratorLoggedIn[0] == 0:
             return "You have logged out. Please log in again."
+
+        #Check whether the Helpdesk Form is solved or not
         dbCursor.execute('''
         SELECT formIsSolved FROM Form
          WHERE formNumber = ?;
@@ -442,125 +403,67 @@ def setFormAsSolved (dataAdministratorEmail, dataAdministratorPassword, dataForm
         isSolved = dbCursor.fetchone()
         if isSolved[0] == 1:
             return "The Helpdesk Form is already solved."
+
+        #Insert the record of the administrator setting the Helpdesk Form as solved
         dbCursor.execute('''
-        SELECT EXISTS(
-         SELECT formNumber FROM AdministratorViewingOfForm
-          WHERE formNumber = ? AND
-           formSetAsSolved = 1);
+        INSERT INTO AdministratorViewingOfForm (
+         administratorID, formDateTimeViewed, formSetAsSolved, formNumber)
+        VALUES(
+         (SELECT administratorID FROM Administrator
+          WHERE administratorEmail = ?),
+         (SELECT datetime("now")),
+         1,
+         ?);
         ''',
-        (dataFormNumber,))
-        existRecord = dbCursor.fetchone()
-        if existRecord == 0:
-            dbCursor.execute('''
-            SELECT IIF(
-             SELECT EXISTS(
-              SELECT formNumber FROM AdministratorViewingOfFAQ
-               WHERE
-                administratorID = (
-                 SELECT administratorID FROM Administrator
-                  WHERE administratorEmail = ?) AND
-                formNumber = ?) AND
-             ((SELECT datetime("now")) -
-              (SELECT MAX(formDateTimeViewed) FROM AdministratorViewingOfFAQ
-               WHERE
-                administratorID = (
-                 SELECT administratorID FROM Administrator
-                  WHERE administratorEmail = ?) AND
-                formNumber = ?)) <= 1),
-             1,
-             0
-             ) hasRecordWithinOneDay;
-             ''',
-            (dataAdministratorEmail, dataFormNumber,
-             dataAdministratorEmail, dataFormNumber,))
-            hasRecordWithinOneDay = dbCursor.fetchone()
-            if hasRecordWithinOneDay[0] == 0:
-                dbCursor.execute('''
-                INSERT INTO AdministratorViewingOfForm (
-                 administratorID, formDateTimeViewed, formNumber)
-                VALUES(
-                 SELECT administratorID FROM Administrator
-                  WHERE administratorEmail = ?,
-                 SELECT datetime("now"),
-                 ?);
-                ''',
-                (dataAdministratorEmail, dataAdministratorNumber,))
-                dbConnection.commit()
-                dbCursor.execute('''
-                SELECT IIF(
-                 SELECT EXISTS(
-                  SELECT formNumber FROM AdministratorViewingOfFAQ
-                   WHERE
-                    administratorID = (
-                     SELECT administratorID FROM Administrator
-                      WHERE administratorEmail = ?) AND
-                    formNumber = ?) AND
-                 (((SELECT datetime("now")) -
-                  (SELECT MAX(formDateTimeViewed) FROM AdministratorViewingOfFAQ
-                   WHERE
-                    administratorID = (
-                     SELECT administratorID FROM Administrator
-                      WHERE administratorEmail = ?) AND
-                    formNumber = ?))*(24*60)) <= 1),
-                 1,
-                 0
-                 ) isRecordedWithinOneMinuteAgo;
-                ''',
-                (dataAdministratorEmail, dataFormNumber,
-                 dataAdministratorEmail, dataFormNumber,))
-                viewingIsRecordedWithinOneMinuteAgo = dbCursor.fetchone()
-                if viewingIsRecordedWithinOneMinuteAgo[0] == 0:
-                    return "Something wrong about creating new record in AdministratorViewingOfForm)."                        
-            dbCursor.execute('''
-            UPDATE AdministratorViewingOfForm 
-             SET formSetAsSolved = 1
-              WHERE formDateTimeViewed = (
-               SELECT MAX(formDateTimeViewed) FROM AdministratorViewingOfForm
-                WHERE
-                 administratorID = (
-                  SELECT administratorID FROM Administrator
-                   WHERE administratorEmail = ?) AND
-                 formNumber = ?);
-            ''',
-            (dataAdministratorEmail, dataFormNumber,))
-            dbConnection.commit()
-            dbCursor.execute('''
-            SELECT formSetAsSolved FROM AdministratorViewingOfForm
-             WHERE formDateTimeViewed = (
-              SELECT MAX(formDateTimeViewed) FROM AdministratorViewingOfForm
-               WHERE
-                administratorID = (
-                 SELECT administratorID FROM Administrator
-                  WHERE administratorEmail = ?) AND
-                formNumber = ?)
-            ''',
-            (dataAdministratorEmail, dataFormNumber,))
-            recordedInViewing = dbCursor.execute()
-            if recordedInViewing[0] == 0:
-                return "Something wrong when updating record in AdministratorViewingOfForm)."
+        (dataAdministratorEmail, dataFormNumber,))
+
+        #Set the form as solved
         dbCursor.execute('''
         UPDATE Form
          SET formIsSolved = 1
           WHERE formNumber = ?;
         ''',
         (dataFormNumber,))
-        dbConnection.commit()
+
+        #Check the insertion just now was successful or not
+        dbCursor.execute('''
+        SELECT IIF(
+         (SELECT v.formSetAsSolved
+          FROM AdministratorViewingOfForm v, Administrator a
+           WHERE
+            v.formDateTimeViewed =
+             (SELECT MAX(formDateTimeViewed)
+              FROM AdministratorViewingOfForm
+               WHERE formNumber = ?) AND
+            v.formNumber = ? AND
+            a.administratorEmail = ? AND
+            v.administratorID = a.administratorID) = 1,
+         1,
+         0
+        ) recorded;
+        ''',
+        (dataFormNumber, dataFormNumber, dataAdministratorEmail,))
+        recordedInViewing = dbCursor.fetchone()
+        if recordedInViewing[0] == 0:
+            return "Something wrong when inserting record of administrator setting the Helpdesk Form as solved."
+
+        #Check whether the update was successful or not
         dbCursor.execute('''
         SELECT IIF((
          SELECT formIsSolved FROM Form
           WHERE formNumber = ?) = 1,
-         "Update was successful.",
+         "Status is updated.",
          "Something wrong when updating the status in Form."
         ) message;
         ''',
         (dataFormNumber,))
         returnMessage = dbCursor.fetchone()
+        if returnMessage[0] == "Status is updated.":
+            dbConnection.commit()
         return returnMessage[0]
 
     except sqlite3.Error as errorMessage:
         return errorMessage
     finally:
         dbConnection.close()
-    
-        
-    
+
