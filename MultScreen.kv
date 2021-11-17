@@ -13,6 +13,9 @@ WindowManager:
 	viewfaq:
 
 <LoginWindow>:
+	
+	name: "login"
+
 	Image:
 		source: "LoginPageGraphic.png"
 		size_hint: (.5, .5)
@@ -67,7 +70,7 @@ WindowManager:
 		padding_y: 15
 
 	MDTextField:
-		id: password
+		id: login_password
 		mode:"rectangle"
 		hint_text: "password"
 		icon_right: "eye-off"
@@ -78,7 +81,7 @@ WindowManager:
 		password: True
 
 	MDLabel:
-		id: password_error
+		id: login_password_error
 		text: " "
 		font_size: 15
 		size_hint_y: None
@@ -89,17 +92,7 @@ WindowManager:
 			Color:
 				rgba: (0,0,0,1)
 		color: ("#FF0000")
-           
-	MDTextButton:
-		text: "Don't have an account? Register here."
-		font_size: 14
-		pos_hint: {"x":198/800, "y":195/500}
-		on_press: 
-			app.root.current = "Registration"
-			root.manager.transition.direction = "left"
-			root.ids.login_email.text = ""
-			root.ids.password.text = ""
-			
+
 	MDRectangleFlatButton:
 		text: "Login"
 		font_size: 16
@@ -864,6 +857,7 @@ WindowManager:
 		on_press:
 			app.removeFAQ()
 			app.root.current = "FAQList" if root.ids.faq_delete_error.text == "FAQ is deleted." else "AddEditDeleteFAQPage1"
+			app.root.current = app.clearFAQ() if root.ids.faq_delete_error.text == "FAQ is deleted." else "AddEditDeleteFAQPage1"
 			root.manager.transition.direction = "right"
 
 	MDLabel:
@@ -1053,6 +1047,7 @@ WindowManager:
 		on_press:
 			app.removeFAQ()
 			app.root.current = "FAQList" if root.ids.faq_upload_error.text == "FAQ is deleted." else "AddEditDeleteFAQPage2"
+			app.root.current = app.clearFAQ() if root.ids.faq_upload_error.text == "FAQ is deleted." else "AddEditDeleteFAQPage2"
 			root.manager.transition.direction = "right"
 
 	MDLabel:
@@ -1439,7 +1434,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqsortDropDown()
 			app.setFAQSortPreference("ascending")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("pref")
 
 	MDRectangleFlatButton:
 		text:"Desc."
@@ -1450,7 +1445,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqsortDropDown()
 			app.setFAQSortPreference("descending")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("pref")
 
 	MDRectangleFlatButton:
 		text:"Date"
@@ -1461,7 +1456,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqsortDropDown()
 			app.setFAQSortPreference("date")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("pref")
 
 	MDRectangleFlatButton:
 		text:"Rating"
@@ -1472,7 +1467,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqsortDropDown()
 			app.setFAQSortPreference("rating")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("pref")
 
 <FAQlist_catdev_dropdown>
 
@@ -1485,7 +1480,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("computer")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
 
 	MDRectangleFlatButton:
 		text:"Smartphone"
@@ -1496,7 +1491,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("smartphone")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
 
 	MDRectangleFlatButton:
 		text:"Hardware"
@@ -1507,7 +1502,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("hardware")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
 
 	MDRectangleFlatButton:
 		text:"Security"
@@ -1518,7 +1513,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("security")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
 
 	MDRectangleFlatButton:
 		text:"Architecture"
@@ -1529,7 +1524,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("architecture")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
 
 	MDRectangleFlatButton:
 		text:"Connections"
@@ -1540,7 +1535,7 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("connections")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
 
 	MDRectangleFlatButton:
 		text:"All"
@@ -1551,4 +1546,4 @@ WindowManager:
 		on_press:
 			app.dismissfaqcatdevDropDown()
 			app.setFAQcatdev("all")
-			app.rearrangeFAQ()
+			app.rearrangeFAQ("catdev")
